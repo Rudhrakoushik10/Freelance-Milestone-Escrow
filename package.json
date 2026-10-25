@@ -7,6 +7,11 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.cjs --network localhost",
+    "deploy:ignition": "hardhat ignition deploy ./ignition/modules/FreelanceMilestoneEscrow.cjs --network localhost",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
@@ -27,17 +32,31 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-ignition": "^0.15.0",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "@types/chai": "^4.2.0",
     "@types/express": "^4.17.21",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "chai": "^4.2.0",
     "esbuild": "^0.28.0",
     "hardhat": "2.22.18",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
+    "typechain": "^8.3.0",
     "typescript": "^7.0.2"
   }
 }
