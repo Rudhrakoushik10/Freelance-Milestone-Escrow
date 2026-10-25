@@ -6,8 +6,10 @@ cache/
 artifacts/
 ignition/deployments/
 .aistudio/
+public/assets/aistudio/
 .DS_Store
 *.log
 .env*
 !.env.example
+
 

@@ -3,16 +3,10 @@ import { NotificationRecord } from '../types/escrow';
 import { evm } from '../services/evmEngine';
 import {
   Coins,
-  CheckCircle2,
   ShieldAlert,
   Upload,
-  Scale,
-  RotateCcw,
-  Sparkles,
   X,
   ExternalLink,
-  Bell,
-  ArrowDownLeft,
 } from 'lucide-react';
 
 interface NotificationToastProps {
@@ -63,59 +57,47 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onSelectAg
   const getToastIcon = () => {
     switch (toast.type) {
       case 'funded':
-        return <Coins className="w-5 h-5 text-emerald-600 shrink-0" />;
       case 'completed':
-        return <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />;
-      case 'disputed':
-        return <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />;
-      case 'submitted':
-        return <Upload className="w-5 h-5 text-blue-600 shrink-0" />;
-      case 'resolved':
-        return <Scale className="w-5 h-5 text-amber-600 shrink-0" />;
-      case 'refunded':
-        return <RotateCcw className="w-5 h-5 text-purple-600 shrink-0" />;
       case 'withdrawn':
-        return <ArrowDownLeft className="w-5 h-5 text-emerald-600 shrink-0" />;
+        return <Coins className="w-5 h-5 text-[#22C55E] shrink-0" />;
+      case 'disputed':
+      case 'resolved':
+        return <ShieldAlert className="w-5 h-5 text-white shrink-0" />;
       default:
-        return <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />;
+        return <Upload className="w-5 h-5 text-white shrink-0" />;
     }
   };
 
-  const getBorderColor = () => {
+  const getTopBarColor = () => {
     switch (toast.severity) {
-      case 'success':
-        return 'border-emerald-300/80 bg-emerald-50/95';
-      case 'warning':
-        return 'border-amber-300/80 bg-amber-50/95';
       case 'error':
-        return 'border-rose-300/80 bg-rose-50/95';
+      case 'warning':
+        return 'bg-[#991B1B]';
       default:
-        return 'border-indigo-300/80 bg-indigo-50/95';
+        return 'bg-[#14532D]';
     }
   };
 
   return (
     <div className="fixed bottom-5 right-5 z-50 max-w-md w-full px-4 animate-in slide-in-from-bottom-5 fade-in duration-300 pointer-events-auto">
-      <div
-        className={`p-4 rounded-2xl backdrop-blur-2xl border shadow-2xl shadow-indigo-950/20 text-slate-900 flex items-start gap-3 relative overflow-hidden transition-all ${getBorderColor()}`}
-      >
-        {/* Animated Top Progress Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 animate-pulse" />
+      <div className="p-4 rounded-2xl bg-[#111312] border border-white/15 shadow-2xl text-white flex items-start gap-3 relative overflow-hidden transition-all">
+        {/* Top Accent Line */}
+        <div className={`absolute top-0 left-0 right-0 h-1 ${getTopBarColor()}`} />
 
         {/* Icon */}
-        <div className="p-2 rounded-xl bg-white/80 backdrop-blur-md shadow-xs border border-white/80">
+        <div className="p-2 rounded-xl bg-[#1A1D1B] border border-white/10">
           {getToastIcon()}
         </div>
 
         {/* Content */}
         <div className="flex-1 space-y-1 min-w-0 pr-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-900 truncate">{toast.title}</span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-slate-900/10 text-slate-700 font-bold">
+            <span className="text-xs font-bold text-white truncate font-display">{toast.title}</span>
+            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-[#14532D] text-white font-bold">
               Real-Time Alert
             </span>
           </div>
-          <p className="text-xs text-slate-700 leading-snug break-words">
+          <p className="text-xs text-white/80 leading-snug break-words">
             {toast.message}
           </p>
 
@@ -123,7 +105,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onSelectAg
             {toast.contractAddress && (
               <button
                 onClick={handleAction}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold transition-colors flex items-center gap-1 shadow-xs"
+                className="px-2.5 py-1 rounded-lg bg-[#14532D] hover:bg-[#166534] text-white text-[11px] font-bold transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
               >
                 <span>Open Agreement</span>
                 <ExternalLink className="w-3 h-3" />
@@ -131,7 +113,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onSelectAg
             )}
             <button
               onClick={handleDismiss}
-              className="px-2.5 py-1 rounded-lg bg-white/80 hover:bg-white text-slate-700 text-[11px] font-medium transition-colors border border-slate-200/80"
+              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium transition-colors border border-white/15 cursor-pointer"
             >
               Dismiss
             </button>
@@ -141,7 +123,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onSelectAg
         {/* Close Button */}
         <button
           onClick={handleDismiss}
-          className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors absolute top-3 right-3"
+          className="text-white/50 hover:text-white p-1 rounded-lg transition-colors absolute top-3 right-3 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>

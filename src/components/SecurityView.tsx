@@ -2,12 +2,10 @@ import React from 'react';
 import {
   ShieldCheck,
   Lock,
-  FileCode2,
   AlertTriangle,
   CheckCircle2,
   Cpu,
   ArrowRight,
-  Wallet,
   Shield,
   KeyRound,
   FileCheck,
@@ -22,25 +20,25 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
     {
       title: 'Formal Reentrancy Defense',
       desc: 'All state-changing functions adhere strictly to the Checks-Effects-Interactions (CEI) design pattern and are shielded by OpenZeppelin-standard reentrancy mutex guards (_status != _ENTERED).',
-      icon: <Lock className="w-6 h-6 text-indigo-600" />,
+      icon: <Lock className="w-6 h-6 text-lime-300" />,
       status: 'Enforced On-Chain',
     },
     {
       title: 'Solvency Invariant Verification',
       desc: 'Every agreement verifies: contractBalance == totalReserved + sum(withdrawable). No fund leakage, stranded reserves, or unauthorized minting is mathematically possible.',
-      icon: <ShieldCheck className="w-6 h-6 text-emerald-600" />,
+      icon: <ShieldCheck className="w-6 h-6 text-emerald-400" />,
       status: 'Mathematically Proven',
     },
     {
       title: 'Single-Role RBAC Enforcement',
       desc: 'Cryptographic modifiers (onlyClient, onlyFreelancer, onlyArbitrator) protect all state transitions. Accounts cannot spoof privileges or transition across role boundaries.',
-      icon: <KeyRound className="w-6 h-6 text-blue-600" />,
+      icon: <KeyRound className="w-6 h-6 text-lime-300" />,
       status: 'Role-Gated',
     },
     {
       title: 'Pull-Over-Push Accounting',
       desc: 'No external ETH transfers occur during approval or arbitration. Funds are ledger-credited to individual withdrawable balances, eliminating denial-of-service attack vectors.',
-      icon: <Cpu className="w-6 h-6 text-purple-600" />,
+      icon: <Cpu className="w-6 h-6 text-emerald-400" />,
       status: 'DoS Immune',
     },
   ];
@@ -52,7 +50,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
     },
     {
       threat: 'Client Refusal to Pay / Extortion',
-      mitigation: '100% of agreement funds are locked in escrow upfront. If the client refuses to approve, the arbitrator can enforce release.',
+      mitigation: '100% of agreement funds are locked in escrow upfront. If a dispute is raised, the neutral arbitrator enforces a fair split.',
     },
     {
       threat: 'Arbitrator Unauthorized Withdrawal',
@@ -68,15 +66,15 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
     <div className="max-w-5xl mx-auto py-8 sm:py-12 px-4 space-y-12 animate-in fade-in duration-200">
       {/* Page Header */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/60 text-blue-800 text-xs font-semibold">
-          <Shield className="w-3.5 h-3.5 text-blue-600" />
+        <div className="inline-flex items-center gap-2 text-lime-300 text-xs font-semibold">
+          <Shield className="w-3.5 h-3.5 text-emerald-400" />
           <span>Security & Threat Model</span>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
           Security Architecture
         </h1>
-        <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-          Cryptographic guarantees, formal accounting invariants, and defense-in-depth principles protecting over every escrow transaction.
+        <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
+          Cryptographic guarantees, formal accounting invariants, and defense-in-depth principles protecting every escrow transaction.
         </p>
       </div>
 
@@ -85,22 +83,22 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
         {securityPillars.map((p, idx) => (
           <div
             key={idx}
-            className="p-6 rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-lg shadow-indigo-950/5 space-y-4 hover:shadow-xl transition-all"
+            className="p-6 rounded-3xl bg-slate-950/70 backdrop-blur-xl border border-emerald-500/20 shadow-2xl shadow-black/60 space-y-4 hover:border-lime-400/40 transition-all"
           >
             <div className="flex items-center justify-between">
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 shadow-2xs">
+              <div className="p-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/30">
                 {p.icon}
               </div>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+              <span className="text-xs font-mono text-lime-300">
                 {p.status}
               </span>
             </div>
 
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 className="text-base font-bold text-white">
               {p.title}
             </h3>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-300 leading-relaxed">
               {p.desc}
             </p>
           </div>
@@ -108,23 +106,23 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
       </div>
 
       {/* Threat Model Matrix */}
-      <div className="p-8 rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-xl space-y-6">
+      <div className="p-8 rounded-3xl bg-slate-950/75 backdrop-blur-xl border border-emerald-500/20 shadow-2xl shadow-black/70 space-y-6">
         <div className="flex items-center gap-2">
-          <FileCheck className="w-5 h-5 text-indigo-600" />
-          <h2 className="text-xl font-bold text-slate-900">
+          <FileCheck className="w-5 h-5 text-lime-300" />
+          <h2 className="text-xl font-bold text-white">
             Threat Model & Defensive Mitigations
           </h2>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-white/10">
           {threatMitigations.map((item, idx) => (
             <div key={idx} className="py-4 first:pt-0 last:pb-0 grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className="md:col-span-5 font-semibold text-xs text-slate-900 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <div className="md:col-span-5 font-semibold text-xs text-slate-100 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>{item.threat}</span>
               </div>
-              <div className="md:col-span-7 text-xs text-slate-600 flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="md:col-span-7 text-xs text-slate-300 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>{item.mitigation}</span>
               </div>
             </div>
@@ -133,7 +131,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
       </div>
 
       {/* Bottom CTA Banner */}
-      <div className="p-8 rounded-3xl bg-slate-900 text-white shadow-xl text-center space-y-4">
+      <div className="p-8 rounded-3xl bg-slate-950/85 backdrop-blur-xl border border-lime-400/30 text-white shadow-2xl shadow-black/70 text-center space-y-4">
         <h2 className="text-2xl font-bold">
           Start With Complete Security Assurance
         </h2>
@@ -143,7 +141,7 @@ export const SecurityView: React.FC<SecurityViewProps> = ({ onConnectWallet }) =
         <div className="pt-2">
           <button
             onClick={onConnectWallet}
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all cursor-pointer whitespace-nowrap"
           >
             <span>Get Started</span>
             <ArrowRight className="w-4 h-4" />

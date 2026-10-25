@@ -10,7 +10,6 @@ import {
   X,
   Check,
   Copy,
-  ShieldCheck,
   ArrowRight,
   Globe,
   Flame,
@@ -106,19 +105,19 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         onClick={() => handleSelectRoleAccount(account.id)}
         className={`group relative p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
           isNodeOnline
-            ? 'bg-white/90 border-slate-200 hover:border-indigo-500 hover:shadow-lg cursor-pointer'
-            : 'bg-slate-100/80 border-slate-200/80 opacity-75 cursor-not-allowed'
+            ? 'bg-white border-[#111312]/12 hover:border-[#14532D] hover:shadow-md cursor-pointer'
+            : 'bg-[#F7F8F7] border-[#111312]/10 opacity-75 cursor-not-allowed'
         }`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs ${
+              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-2xs ${
                 isClient
-                  ? 'bg-blue-100 text-blue-700'
+                  ? 'bg-[#111312]'
                   : isFreelancer
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-amber-100 text-amber-700'
+                  ? 'bg-[#14532D]'
+                  : 'bg-[#991B1B]'
               }`}
             >
               {isClient && <Briefcase className="w-5 h-5" />}
@@ -127,46 +126,46 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                <h4 className="text-sm font-bold text-[#111312] group-hover:text-[#14532D] transition-colors font-display">
                   {account.name}
                 </h4>
                 <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider text-white ${
                     isClient
-                      ? 'bg-blue-100 text-blue-800'
+                      ? 'bg-[#111312]'
                       : isFreelancer
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
+                      ? 'bg-[#14532D]'
+                      : 'bg-[#991B1B]'
                   }`}
                 >
                   {account.roleLabel}
                 </span>
               </div>
-              <span className="text-xs text-slate-400 font-mono">@{account.username}</span>
+              <span className="text-xs text-[#111312]/50 font-mono">@{account.username}</span>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="text-[11px] text-slate-400 block">
+            <span className="text-[11px] text-[#111312]/50 block">
               {isNodeOnline ? 'Live RPC Balance' : 'Node Offline'}
             </span>
-            <span className="text-xs font-mono font-bold text-slate-900">
+            <span className="text-xs font-mono font-bold text-[#111312]">
               {isNodeOnline ? `${account.balance} ETH` : '— ETH'}
             </span>
           </div>
         </div>
 
         {/* Address and Connect Action */}
-        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500">
+        <div className="pt-2.5 border-t border-[#111312]/10 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#111312]/60">
             <span>{account.address}</span>
             <button
               onClick={(e) => handleCopy(account.address, e)}
-              className="text-slate-400 hover:text-slate-700 p-0.5 transition-colors cursor-pointer"
+              className="text-[#111312]/40 hover:text-[#111312] p-0.5 transition-colors cursor-pointer"
               title="Copy Address"
             >
               {copiedAddress === account.address ? (
-                <Check className="w-3 h-3 text-emerald-600" />
+                <Check className="w-3 h-3 text-[#14532D]" />
               ) : (
                 <Copy className="w-3 h-3" />
               )}
@@ -178,10 +177,10 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
               e.stopPropagation();
               handleSelectRoleAccount(account.id);
             }}
-            className={`flex items-center gap-1 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1 text-xs font-bold transition-all ${
               isNodeOnline
-                ? 'text-indigo-600 group-hover:text-indigo-700 group-hover:translate-x-0.5 cursor-pointer'
-                : 'text-rose-500 cursor-not-allowed'
+                ? 'text-[#14532D] group-hover:text-[#166534] group-hover:translate-x-0.5 cursor-pointer'
+                : 'text-[#991B1B] cursor-not-allowed'
             }`}
           >
             <span>{isNodeOnline ? 'Connect Wallet' : 'Server Offline'}</span>
@@ -194,37 +193,37 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#111312]/70 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] bg-slate-50/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-3xl max-h-[90vh] bg-[#F7F8F7] rounded-3xl border border-[#111312]/15 shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-5 bg-white/90 border-b border-slate-200/80 flex items-center justify-between gap-4">
+        <div className="px-6 py-5 bg-[#111312] text-white border-b border-white/10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+            <div className="w-10 h-10 rounded-2xl bg-[#14532D] text-white flex items-center justify-center shadow-sm">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+                <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight font-display">
                   Connect Your Wallet
                 </h3>
                 {rpcStatus.isNodeOnline ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
-                    <Wifi className="w-3 h-3 text-emerald-600" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#14532D] border border-white/15 text-white text-[10px] font-bold">
+                    <Wifi className="w-3 h-3 text-[#22C55E]" />
                     Hardhat RPC Online · Block #{rpcStatus.latestBlock}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold">
-                    <WifiOff className="w-3 h-3 text-rose-600" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#991B1B] border border-white/15 text-white text-[10px] font-bold">
+                    <WifiOff className="w-3 h-3 text-white" />
                     Hardhat RPC Offline (127.0.0.1:8545 Closed)
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-white/70 mt-0.5">
                 Connect via MetaMask or select one of the 3 dedicated role accounts (Alex, Stark, or Mark).
               </p>
             </div>
@@ -232,7 +231,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -243,24 +242,24 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         <div className="p-6 overflow-y-auto space-y-5">
           {/* Live Hardhat Server Offline Warning */}
           {!rpcStatus.isNodeOnline && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 space-y-2 shadow-xs">
+            <div className="p-4 rounded-2xl bg-[#991B1B]/10 border border-[#991B1B]/30 text-[#991B1B] space-y-2 shadow-xs">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 font-bold text-xs text-rose-800">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <div className="flex items-center gap-2 font-bold text-xs text-[#991B1B]">
+                  <AlertTriangle className="w-4 h-4 text-[#991B1B] shrink-0" />
                   <span>Hardhat RPC Server Disconnected (http://127.0.0.1:8545 is Closed)</span>
                 </div>
                 <button
                   onClick={handleRetryNode}
                   disabled={checkingNode}
-                  className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  className="px-3 py-1 rounded-lg bg-[#991B1B] hover:bg-[#B91C1C] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3 h-3 ${checkingNode ? 'animate-spin' : ''}`} />
                   <span>{checkingNode ? 'Checking...' : 'Retry Connection'}</span>
                 </button>
               </div>
-              <p className="text-xs text-rose-700 leading-relaxed">
+              <p className="text-xs text-[#991B1B] leading-relaxed">
                 Wallet connections require an active Hardhat JSON-RPC node so that balances and transactions are 100% original and verifiable. Start{' '}
-                <code className="bg-rose-100 px-1.5 py-0.5 rounded font-mono font-bold">
+                <code className="bg-[#991B1B]/15 px-1.5 py-0.5 rounded font-mono font-bold">
                   npx hardhat node
                 </code>{' '}
                 in your terminal, then click <strong>Retry Connection</strong>.
@@ -269,20 +268,20 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           )}
 
           {/* Live MetaMask Option */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-4 rounded-2xl bg-[#111312] text-white border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-[#14532D] text-white flex items-center justify-center shadow-sm shrink-0">
                 <Flame className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2 font-display">
                   <span>Connect Browser Extension (MetaMask)</span>
-                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-[10px] bg-white/15 text-white px-2 py-0.5 rounded font-mono">
                     Chain ID: 31337
                   </span>
                 </h4>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Connect MetaMask on <code className="bg-amber-100/60 px-1 py-0.5 rounded text-[11px] font-mono">http://127.0.0.1:8545</code> for live browser popup signing.
+                <p className="text-xs text-white/70 mt-0.5">
+                  Connect MetaMask on <code className="bg-white/10 px-1 py-0.5 rounded text-[11px] font-mono text-[#22C55E]">http://127.0.0.1:8545</code> for live browser popup signing.
                 </p>
               </div>
             </div>
@@ -290,7 +289,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             <button
               onClick={handleConnectMetaMask}
               disabled={isConnectingMetaMask || !rpcStatus.isNodeOnline}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#166534] text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Globe className="w-4 h-4" />
               <span>
@@ -304,21 +303,21 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           </div>
 
           {metaMaskError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+            <div className="p-3 rounded-xl bg-[#991B1B]/10 border border-[#991B1B]/30 text-[#991B1B] text-xs font-bold">
               ⚠️ {metaMaskError}
             </div>
           )}
 
           {/* Client Account */}
           <section className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+            <div className="flex items-center justify-between border-b border-[#111312]/12 pb-2">
               <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-blue-600" />
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                <Briefcase className="w-4 h-4 text-[#111312]" />
+                <h4 className="text-xs font-bold text-[#111312] uppercase tracking-wider font-mono">
                   Client Account (Commission & Fund Agreements)
                 </h4>
               </div>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-[#111312]/50 font-mono">
                 {clientAccounts.length} Account
               </span>
             </div>
@@ -329,14 +328,14 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
           {/* Freelancer Account */}
           <section className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+            <div className="flex items-center justify-between border-b border-[#111312]/12 pb-2">
               <div className="flex items-center gap-2">
-                <Laptop className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                <Laptop className="w-4 h-4 text-[#14532D]" />
+                <h4 className="text-xs font-bold text-[#14532D] uppercase tracking-wider font-mono">
                   Freelancer Account (Submit Deliverables & Withdraw)
                 </h4>
               </div>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-[#111312]/50 font-mono">
                 {freelancerAccounts.length} Account
               </span>
             </div>
@@ -347,14 +346,14 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
           {/* Arbitrator Account */}
           <section className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+            <div className="flex items-center justify-between border-b border-[#111312]/12 pb-2">
               <div className="flex items-center gap-2">
-                <Scale className="w-4 h-4 text-amber-600" />
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                <Scale className="w-4 h-4 text-[#991B1B]" />
+                <h4 className="text-xs font-bold text-[#991B1B] uppercase tracking-wider font-mono">
                   Arbitrator Account (Neutral Dispute Mediation)
                 </h4>
               </div>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-[#111312]/50 font-mono">
                 {arbitratorAccounts.length} Account
               </span>
             </div>
@@ -365,7 +364,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-100/90 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-6 py-3.5 bg-white border-t border-[#111312]/12 flex items-center justify-between text-xs text-[#111312]/60">
           <span>
             {rpcStatus.isNodeOnline
               ? `Connected to Hardhat RPC http://127.0.0.1:8545 (Chain ID ${rpcStatus.chainId}).`
@@ -373,7 +372,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-xl bg-[#111312] hover:bg-[#222624] text-white font-bold transition-colors cursor-pointer"
           >
             Cancel
           </button>
