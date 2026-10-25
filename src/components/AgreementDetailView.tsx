@@ -391,13 +391,20 @@ export const AgreementDetailView: React.FC<AgreementDetailViewProps> = ({
               Depositing exact funds transitions the agreement to <strong className="text-emerald-700">Active</strong> and locks funds in <strong className="text-amber-700">totalReserved</strong>.
             </p>
           </div>
-          <button
-            onClick={handleFund}
-            disabled={actionLoading}
-            className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors shadow-xs shrink-0"
-          >
-            Deposit Exact Funding ({agreement.totalRequired} ETH)
-          </button>
+          {isClient ? (
+            <button
+              onClick={handleFund}
+              disabled={actionLoading}
+              className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+            >
+              Deposit Exact Funding ({agreement.totalRequired} ETH)
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-900 text-xs font-mono font-semibold shrink-0">
+              <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>Awaiting Client (Alex) to deposit exact escrow funding ({agreement.totalRequired} ETH)</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -485,89 +492,148 @@ export const AgreementDetailView: React.FC<AgreementDetailViewProps> = ({
                     )}
                   </div>
 
-                  {/* Right: Milestone Actions */}
+                  {/* Right: Role-Gated Milestone Actions & Waiting Badges */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
                     
-                    {/* Freelancer: Submit work */}
+                    {/* Unfunded Agreement Waiting Badge on Milestones */}
+                    {agreement.agreementState === 'Unfunded' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-mono font-medium">
+                        <Lock className="w-3.5 h-3.5 text-amber-600" />
+                        {isClient
+                          ? 'Deposit Escrow Funding Above to Activate'
+                          : 'Awaiting Client (Alex) Escrow Deposit'}
+                      </span>
+                    )}
+
+                    {/* PENDING MILESTONE (Active Agreement) */}
                     {isPending && agreement.agreementState === 'Active' && (
-                      <button
-                        onClick={() => {
-                          setSubmitModalIndex(milestone.index);
-                          setSubmissionNote('');
-                        }}
-                        className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        Submit Work
-                      </button>
-                    )}
-
-                    {/* Client: Approve work */}
-                    {isSubmitted && agreement.agreementState === 'Active' && (
-                      <button
-                        onClick={() => handleApproveMilestone(milestone.index)}
-                        disabled={actionLoading}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Approve & Credit Freelancer
-                      </button>
-                    )}
-
-                    {/* Client or Freelancer: Raise dispute */}
-                    {isSubmitted && agreement.agreementState === 'Active' && (
-                      <button
-                        onClick={() => handleRaiseDispute(milestone.index)}
-                        disabled={actionLoading}
-                        className="px-3.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
-                      >
-                        <AlertOctagon className="w-3.5 h-3.5" />
-                        Raise Dispute
-                      </button>
-                    )}
-
-                    {/* Arbitrator: Resolve dispute */}
-                    {isDisputed && agreement.agreementState === 'Active' && (
-                      <button
-                        onClick={() => {
-                          setDisputeModalIndex(milestone.index);
-                          setDisputeBps(7000);
-                        }}
-                        className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
-                      >
-                        <Scale className="w-3.5 h-3.5" />
-                        Resolve Dispute
-                      </button>
-                    )}
-
-                    {/* Client: Refund unstarted milestone */}
-                    {isPending && agreement.agreementState === 'Active' && isClient && (
-                      confirmRefundMilestoneIndex === milestone.index ? (
-                        <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 p-1 rounded-lg">
-                          <span className="text-[11px] text-rose-700 font-medium px-1">Refund milestone?</span>
+                      <>
+                        {isFreelancer ? (
                           <button
-                            onClick={() => handleRefundMilestone(milestone.index)}
+                            onClick={() => {
+                              setSubmitModalIndex(milestone.index);
+                              setSubmissionNote('');
+                            }}
                             disabled={actionLoading}
-                            className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-colors shadow-xs"
+                            className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                           >
-                            Confirm
+                            <Send className="w-3.5 h-3.5" />
+                            Submit Work
                           </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs font-mono font-medium">
+                            <Clock className="w-3.5 h-3.5 text-slate-500" />
+                            Awaiting Freelancer (Stark) Submission
+                          </span>
+                        )}
+
+                        {/* Client-only secondary option: Refund Unstarted */}
+                        {isClient && (
+                          confirmRefundMilestoneIndex === milestone.index ? (
+                            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 p-1 rounded-lg">
+                              <span className="text-[11px] text-rose-700 font-medium px-1">Refund milestone?</span>
+                              <button
+                                onClick={() => handleRefundMilestone(milestone.index)}
+                                disabled={actionLoading}
+                                className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-colors shadow-xs cursor-pointer"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmRefundMilestoneIndex(null)}
+                                className="px-1.5 py-1 rounded text-slate-500 hover:text-slate-800 text-[11px] cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmRefundMilestoneIndex(milestone.index)}
+                              disabled={actionLoading}
+                              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition-colors cursor-pointer"
+                            >
+                              Refund Unstarted
+                            </button>
+                          )
+                        )}
+                      </>
+                    )}
+
+                    {/* SUBMITTED MILESTONE (Active Agreement) */}
+                    {isSubmitted && agreement.agreementState === 'Active' && (
+                      <>
+                        {isClient ? (
+                          <>
+                            <button
+                              onClick={() => handleApproveMilestone(milestone.index)}
+                              disabled={actionLoading}
+                              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Approve & Credit Freelancer
+                            </button>
+                            <button
+                              onClick={() => handleRaiseDispute(milestone.index)}
+                              disabled={actionLoading}
+                              className="px-3.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              <AlertOctagon className="w-3.5 h-3.5" />
+                              Raise Dispute
+                            </button>
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-mono font-medium">
+                            <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                            Awaiting Client (Alex) Review & Approval
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* DISPUTED MILESTONE (Active Agreement) */}
+                    {isDisputed && agreement.agreementState === 'Active' && (
+                      <>
+                        {isArbitrator ? (
                           <button
-                            onClick={() => setConfirmRefundMilestoneIndex(null)}
-                            className="px-1.5 py-1 rounded text-slate-500 hover:text-slate-800 text-[11px]"
+                            onClick={() => {
+                              setDisputeModalIndex(milestone.index);
+                              setDisputeBps(7000);
+                            }}
+                            disabled={actionLoading}
+                            className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                           >
-                            Cancel
+                            <Scale className="w-3.5 h-3.5" />
+                            Resolve Dispute
                           </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmRefundMilestoneIndex(milestone.index)}
-                          disabled={actionLoading}
-                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
-                        >
-                          Refund Unstarted
-                        </button>
-                      )
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-mono font-medium">
+                            <Scale className="w-3.5 h-3.5 text-rose-600" />
+                            Awaiting Arbitrator (Mark) Ruling
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* TERMINAL MILESTONE STATES */}
+                    {isReleased && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-mono font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Approved & Credited to Freelancer
+                      </span>
+                    )}
+
+                    {isResolved && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-800 text-xs font-mono font-semibold">
+                        <Scale className="w-3.5 h-3.5 text-purple-600" />
+                        Arbitrated Settlement Finalized
+                      </span>
+                    )}
+
+                    {isRefunded && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-mono font-semibold">
+                        <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                        Refunded to Client
+                      </span>
                     )}
 
                   </div>

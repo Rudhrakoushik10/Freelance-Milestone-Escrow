@@ -1,39 +1,93 @@
-# Implementation Plan - Alignment with University Tech Stack & Local Hardhat / MetaMask Support
+# Role-Based Milestone Action Visibility & Access Enforcement
 
-Align the platform with the exact university project tech stack specification, rename the contract to `FreelanceMilestoneEscrow.sol`, add Hardhat Ignition deployment modules, and support MetaMask + local Hardhat RPC (`http://127.0.0.1:8545`) with web preview fallback.
+Enforce strict role-based UI controls and contract guards so each connected account (`Client — Alex`, `Freelancer — Stark`, `Arbitrator — Mark`) only sees the action buttons permitted for its specific role, while displaying clear waiting status badges when a milestone or agreement awaits another participant's action.
 
-## Proposed Changes
+## User Review & Critical Decisions
 
-### 1. Smart Contract & Hardhat Alignment
-- Rename `contracts/FreelanceEscrow.sol` to `contracts/FreelanceMilestoneEscrow.sol` (contract name `FreelanceMilestoneEscrow`).
-- Update `contracts/EscrowFactory.sol` to instantiate `FreelanceMilestoneEscrow` contracts.
-- Update Hardhat compilation & deploy scripts in `scripts/deploy.cjs`.
-- Add Hardhat Ignition deployment module in `ignition/modules/FreelanceMilestoneEscrow.cjs` supporting `npx hardhat ignition deploy ignition/modules/FreelanceMilestoneEscrow.cjs --network localhost`.
-- Update all 5 test files in `test/*.test.cjs` to test `FreelanceMilestoneEscrow` and ensure 100% pass rate.
+> [!IMPORTANT]
+> Confirmed decisions from your answers are incorporated below and govern both the UI action controls and smart contract validation.
 
-### 2. Ethers.js v6, MetaMask & Local Hardhat Node Integration
-- Upgrade `src/services/contractService.ts` to support 3 connection modes:
-  1. **MetaMask Direct Integration:** Detect `window.ethereum`, request `eth_requestAccounts`, switch/add Hardhat Localhost network (Chain ID 31337), and sign real transactions via `BrowserProvider`.
-  2. **Local Hardhat RPC Node:** Connect via `ethers.JsonRpcProvider("http://127.0.0.1:8545")` when running `npx hardhat node`.
-  3. **In-Browser EVM Simulation Fallback:** Provide instant out-of-the-box reactivity when no external node is active.
-- Update `ConnectWalletModal.tsx` and navbar to display connection status (*"MetaMask Connected"*, *"Hardhat Local Node"*, or *"Simulation Mode"*), with 1-click account switching and MetaMask wallet import guides.
-
-### 3. Local University Presentation Guide
-- Create a clear `LOCAL_DEMO_GUIDE.md` detailing step-by-step terminal commands for running:
-  1. `npx hardhat node` (Local Ethereum Blockchain)
-  2. `npx hardhat ignition deploy ignition/modules/FreelanceMilestoneEscrow.cjs --network localhost`
-  3. Importing Hardhat private keys into MetaMask
-  4. `npm run dev` (Frontend Server)
+- **Confirmed Decision 1 (Dispute Trigger Authority)**: Only the **Client (Alex)** can trigger **Approve & Credit Freelancer** or **Raise Dispute** on a submitted milestone.
+- **Confirmed Decision 2 (Non-Active Role UX)**: When an account views an agreement or milestone waiting on another role, the other roles' action buttons are completely hidden and replaced with a clear **waiting status badge** indicating which participant is next in the workflow.
 
 ---
 
-## Verification Plan
+## 1. Overview & Core Concept
 
-### Automated Tests
-1. Run `npx hardhat test` to ensure all `FreelanceMilestoneEscrow` tests pass cleanly.
-2. Run `compile_applet` and `lint_applet` to confirm zero TypeScript and Vite build issues.
+- **What It Does**: Eliminates cross-role button exposure in the agreement detail screen so that:
+  - **Client (Alex)** exclusively sees **Deposit Exact Funding** (when `Unfunded`) and **Approve & Credit Freelancer** / **Raise Dispute** (when a milestone is `Submitted`).
+  - **Freelancer (Stark)** exclusively sees **Submit Work** (when a milestone is `Pending` and the agreement is `Active`).
+  - **Arbitrator (Mark)** exclusively sees **Resolve Dispute** allocation controls (when a milestone is `Disputed`).
+- **Target Audience / Persona**: Clients, freelancers, and arbitrators testing or operating multi-milestone escrow agreements with MetaMask / Hardhat accounts.
+- **Key Value**: Prevents confusing or unauthorized action buttons from appearing on the wrong account and aligns the visual interface 1:1 with the smart contract's `onlyClient`, `onlyFreelancer`, and `onlyArbitrator` access modifiers.
 
-### Manual Verification
-1. Verify MetaMask connection modal and account switching.
-2. Verify Hardhat node connectivity on `http://127.0.0.1:8545`.
-3. Test milestone creation, deliverable submission, client approval, and pull-over-push withdrawals.
+---
+
+## 2. User Experience & Visual Design
+
+- **Key User Flows**:
+  1. **Unfunded Agreement Banner**:
+     - **Connected as Client (Alex)**: Displays the **Deposit Exact Funding** action button.
+     - **Connected as Freelancer (Stark) / Arbitrator (Mark) / Observer**: Hides the deposit button and shows an amber waiting badge: `Awaiting Client (Alex) to deposit exact escrow funding`.
+  2. **Pending Milestone (`Active` Agreement)**:
+     - **Connected as Freelancer (Stark)**: Displays the **Submit Work** button and submission drawer.
+     - **Connected as Client (Alex) / Arbitrator (Mark)**: Hides the submit button and renders a slate/blue status badge: `Awaiting Freelancer (Stark) Submission`.
+  3. **Submitted Milestone (`Active` Agreement)**:
+     - **Connected as Client (Alex)**: Displays **Approve & Credit Freelancer** and **Raise Dispute** buttons.
+     - **Connected as Freelancer (Stark) / Arbitrator (Mark)**: Hides both buttons and renders an indigo waiting badge: `Awaiting Client (Alex) Review & Approval`.
+  4. **Disputed Milestone (`Active` Agreement)**:
+     - **Connected as Arbitrator (Mark)**: Displays the **Resolve Dispute** basis-point split controls and confirmation button.
+     - **Connected as Client (Alex) / Freelancer (Stark)**: Hides the arbitration controls and renders a rose waiting badge: `Awaiting Arbitrator (Mark) Ruling`.
+- **Visual Identity & Theme**:
+  - Retains the existing dark slate financial ledger aesthetic (`bg-slate-900`, `border-slate-800`, monospace address/ETH readouts) with semantic status badges (`amber` for funding wait, `sky/indigo` for work/review wait, `rose` for arbitration wait, `emerald` for completed/released states).
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Strict Role Hiding + Waiting Status Badges over Disabled Buttons**
+  - *Chosen Approach*: Completely hide buttons belonging to other roles and render a contextual waiting status pill in the milestone action bar.
+  - *Why*: Keeps each participant's dashboard uncluttered and makes it unmistakable whose turn it is in the escrow state machine.
+- **Decision 2: Align Contract & Service Layer `raiseDispute` to Client-Only**
+  - *Chosen Approach*: Update `raiseDispute` in the Solidity contract and service validation from `onlyParticipant` to `onlyClient` so the smart contract and frontend enforce the exact same rule.
+  - *Why*: Guarantees defense-in-depth so even direct contract calls respect the Client-only review/dispute authority.
+
+---
+
+## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Connected Account Role Detection                     │
+│  isClient     = (connectedAccount == agreement.client)                  │
+│  isFreelancer = (connectedAccount == agreement.freelancer)              │
+│  isArbitrator = (connectedAccount == agreement.arbitrator)              │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        ▼                           ▼                           ▼
+┌───────────────────┐     ┌───────────────────┐     ┌─────────────────────┐
+│  Unfunded State   │     │   Milestone Row   │     │ Pull-Over-Push Pool │
+├───────────────────┤     ├───────────────────┤     ├─────────────────────┤
+│ • If isClient:    │     │ • Pending:        │     │ • Shows Withdraw    │
+│   [Deposit Funds] │     │   isFreelancer ?  │     │   button only when  │
+│ • Else:           │     │   [Submit Work] : │     │   connected user's  │
+│   Badge: Awaiting │     │   Badge: Awaiting │     │   withdrawable > 0  │
+│   Client Funding  │     │   Freelancer      │     │                     │
+│                   │     │ • Submitted:      │     │                     │
+│                   │     │   isClient ?      │     │                     │
+│                   │     │   [Approve/Dispute│     │                     │
+│                   │     │   : Badge:        │     │                     │
+│                   │     │   Awaiting Client │     │                     │
+│                   │     │ • Disputed:       │     │                     │
+│                   │     │   isArbitrator ?  │     │                     │
+│                   │     │   [Resolve Split] │     │                     │
+│                   │     │   : Badge:        │     │                     │
+│                   │     │   Awaiting Arb.   │     │                     │
+└───────────────────┘     └───────────────────┘     └─────────────────────┘
+```
+
+- **Interactive Component & State Mapping**:
+  - **Role Resolution**: Evaluates case-insensitive address equality between `connectedAccount` and `agreement.client`, `agreement.freelancer`, and `agreement.arbitrator`.
+  - **Conditional Action Bar**: Each milestone card checks `(milestone.state, agreement.agreementState, isClient, isFreelancer, isArbitrator)` before rendering any interactive `<button>` or drawer trigger.
+  - **Contract & Service Enforcement**: Updates `raiseDispute` modifier to `onlyClient` and ensures service-layer validation checks caller == `agreement.client`.

@@ -24,7 +24,7 @@ describe("FreelanceMilestoneEscrow — Disputes, Basis Point Allocation, and Ref
     const total = oddAmount + regularAmount;
     await escrow.connect(client).fundAgreement({ value: total });
     await escrow.connect(freelancer).submitMilestone(0, "Work delivered");
-    await escrow.connect(freelancer).raiseDispute(0);
+    await escrow.connect(client).raiseDispute(0);
 
     // Arbitrator allocates 33.33% (3333 bps)
     await escrow.connect(arbitrator).resolveDispute(0, 3333);
@@ -42,7 +42,7 @@ describe("FreelanceMilestoneEscrow — Disputes, Basis Point Allocation, and Ref
     await expect(escrow.connect(client).approveMilestone(0)).to.be.revertedWith(
       "FreelanceMilestoneEscrow: milestone not in Submitted state"
     );
-    await expect(escrow.connect(freelancer).raiseDispute(0)).to.be.revertedWith(
+    await expect(escrow.connect(client).raiseDispute(0)).to.be.revertedWith(
       "FreelanceMilestoneEscrow: can only dispute Submitted milestone"
     );
   });

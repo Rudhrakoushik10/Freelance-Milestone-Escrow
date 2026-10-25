@@ -275,11 +275,11 @@ contract FreelanceMilestoneEscrow is ReentrancyGuard {
     }
 
     /**
-     * @notice Either client or freelancer can raise a dispute on a submitted milestone.
+     * @notice Client can raise a dispute on a submitted milestone to escalate to the arbitrator.
      */
     function raiseDispute(uint256 index)
         external
-        onlyParticipant
+        onlyClient
         inAgreementState(AgreementState.Active)
     {
         require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");

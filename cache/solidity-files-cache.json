@@ -2,7 +2,7 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/app/applet/contracts/EscrowFactory.sol": {
-      "lastModificationDate": 1792926059749,
+      "lastModificationDate": 1792940878468,
       "contentHash": "61f797426a99a8449a4381417fdf276e",
       "sourceName": "contracts/EscrowFactory.sol",
       "solcConfig": {
@@ -40,8 +40,8 @@
       ]
     },
     "/app/applet/contracts/FreelanceMilestoneEscrow.sol": {
-      "lastModificationDate": 1792927841503,
-      "contentHash": "c2a08d54d2da2108ea51a2341d9cc45b",
+      "lastModificationDate": 1792943154728,
+      "contentHash": "c30efe02545d25906e79f89f20f88492",
       "sourceName": "contracts/FreelanceMilestoneEscrow.sol",
       "solcConfig": {
         "version": "0.8.24",

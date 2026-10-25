@@ -41,7 +41,7 @@ describe("FreelanceMilestoneEscrow — Financial Invariants & Zero-Leakage Accou
 
     // 3. Submit & Dispute Phase 2 (2.0 ETH) -> 70/30 split (7000 bps)
     await escrow.connect(freelancer).submitMilestone(1, "Phase 2 done");
-    await escrow.connect(freelancer).raiseDispute(1);
+    await escrow.connect(client).raiseDispute(1);
     await escrow.connect(arbitrator).resolveDispute(1, 7000); // 70% freelancer (1.4 ETH), 30% client (0.6 ETH)
     inv = await escrow.verifyAccountingInvariant();
     expect(inv.isHolding).to.be.true;

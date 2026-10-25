@@ -835,9 +835,8 @@ class EVMEngine {
     if (!agr) throw new Error('Contract not found');
 
     const isClient = sender.address.toLowerCase() === agr.client.toLowerCase();
-    const isFreelancer = sender.address.toLowerCase() === agr.freelancer.toLowerCase();
-    if (!isClient && !isFreelancer) {
-      throw new Error('FreelanceMilestoneEscrow: caller is not client or freelancer');
+    if (!isClient) {
+      throw new Error('FreelanceMilestoneEscrow: caller is not client');
     }
 
     const m = agr.milestones[milestoneIndex];

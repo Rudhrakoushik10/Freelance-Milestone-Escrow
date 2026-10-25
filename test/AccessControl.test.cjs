@@ -47,10 +47,14 @@ describe("FreelanceMilestoneEscrow — Access Control & Role Boundaries", functi
       escrow.connect(freelancer).approveMilestone(0)
     ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
-    // Attacker cannot raise dispute
+    // Attacker and freelancer cannot raise dispute (onlyClient)
     await expect(
       escrow.connect(attacker).raiseDispute(0)
-    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client or freelancer");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
+
+    await expect(
+      escrow.connect(freelancer).raiseDispute(0)
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
     // Client raises dispute
     await escrow.connect(client).raiseDispute(0);
