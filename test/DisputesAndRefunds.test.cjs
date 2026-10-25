@@ -1,25 +1,28 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
-describe("FreelanceEscrow — Disputes, Basis Point Allocation, and Refunds", function () {
+describe("FreelanceMilestoneEscrow — Disputes, Basis Point Allocation, and Refunds", function () {
   it("should split disputed milestone using integer basis points without rounding leakage", async function () {
     const [client, freelancer, arbitrator] = await ethers.getSigners();
     const oddAmount = 1000000000000000001n; // 1 wei above 1 ETH
+    const regularAmount = ethers.parseEther("0.5");
     const currentTime = await time.latest();
 
-    const Factory = await ethers.getContractFactory("FreelanceEscrow");
+    const Factory = await ethers.getContractFactory("FreelanceMilestoneEscrow");
     const escrow = await Factory.deploy(
       client.address,
       freelancer.address,
       arbitrator.address,
       "Dispute Project",
-      ["Disputed Phase"],
-      [oddAmount],
-      [currentTime + 5000]
+      ["Disputed Phase", "Remaining Phase"],
+      [oddAmount, regularAmount],
+      [currentTime + 5000, currentTime + 10000]
     );
 
-    await escrow.connect(client).fundAgreement({ value: oddAmount });
+    const total = oddAmount + regularAmount;
+    await escrow.connect(client).fundAgreement({ value: total });
     await escrow.connect(freelancer).submitMilestone(0, "Work delivered");
     await escrow.connect(freelancer).raiseDispute(0);
 
@@ -37,10 +40,10 @@ describe("FreelanceEscrow — Disputes, Basis Point Allocation, and Refunds", fu
 
     // Resolved milestone cannot be disputed or approved again
     await expect(escrow.connect(client).approveMilestone(0)).to.be.revertedWith(
-      "FreelanceEscrow: milestone not in Submitted state"
+      "FreelanceMilestoneEscrow: milestone not in Submitted state"
     );
     await expect(escrow.connect(freelancer).raiseDispute(0)).to.be.revertedWith(
-      "FreelanceEscrow: can only dispute Submitted milestone"
+      "FreelanceMilestoneEscrow: can only dispute Submitted milestone"
     );
   });
 
@@ -49,29 +52,30 @@ describe("FreelanceEscrow — Disputes, Basis Point Allocation, and Refunds", fu
     const amount = ethers.parseEther("0.5");
     const currentTime = await time.latest();
 
-    const Factory = await ethers.getContractFactory("FreelanceEscrow");
+    const Factory = await ethers.getContractFactory("FreelanceMilestoneEscrow");
     const escrow = await Factory.deploy(
       client.address,
       freelancer.address,
       arbitrator.address,
       "Refund Project",
-      ["Phase 1"],
-      [amount],
-      [currentTime + 5000]
+      ["Phase 1", "Phase 2"],
+      [amount, amount],
+      [currentTime + 5000, currentTime + 10000]
     );
 
-    await escrow.connect(client).fundAgreement({ value: amount });
+    const total = amount + amount;
+    await escrow.connect(client).fundAgreement({ value: total });
 
-    // Client refunds unstarted milestone
+    // Client refunds unstarted milestone 0
     await expect(escrow.connect(client).refundMilestone(0))
       .to.emit(escrow, "MilestoneRefunded")
-      .withArgs(0, amount, client.address, await time.latest());
+      .withArgs(0, amount, client.address, anyValue);
 
     expect(await escrow.withdrawable(client.address)).to.equal(amount);
 
-    // Cannot refund again
+    // Cannot refund milestone 0 again because its state is now Refunded
     await expect(escrow.connect(client).refundMilestone(0)).to.be.revertedWith(
-      "FreelanceEscrow: can only refund Pending milestone"
+      "FreelanceMilestoneEscrow: can only refund Pending milestone"
     );
   });
 });

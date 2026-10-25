@@ -52,18 +52,12 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
           <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
             Under the decentralized single-role architecture, each account is strictly assigned to one role. Your current account (<strong>{activeAccount.name}</strong>) is registered as a <strong>{activeAccount.roleLabel}</strong>. Only dedicated Client accounts can commission and fund escrow agreements.
           </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="pt-2 flex items-center justify-center">
             <button
               onClick={() => evm.setActiveAccount('account-0')}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all"
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
             >
-              Switch to Client Account (Alex Rivera)
-            </button>
-            <button
-              onClick={() => evm.setActiveAccount('account-4')}
-              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition-all"
-            >
-              Switch to Client Account (Sophia Chen)
+              Switch to Client Account (Alex)
             </button>
           </div>
         </div>
@@ -223,9 +217,9 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setFreelancerAddress(HARDHAT_ACCOUNTS[1].address)}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-500 font-medium"
+                  className="text-[11px] text-indigo-600 hover:text-indigo-500 font-medium cursor-pointer"
                 >
-                  Select Elena Vance (Freelancer)
+                  Select Stark (Freelancer)
                 </button>
               </div>
               <input
@@ -246,9 +240,9 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setArbitratorAddress(HARDHAT_ACCOUNTS[2].address)}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-500 font-medium"
+                  className="text-[11px] text-indigo-600 hover:text-indigo-500 font-medium cursor-pointer"
                 >
-                  Select Marcus Thorne (Arbitrator)
+                  Select Mark (Arbitrator)
                 </button>
               </div>
               <input

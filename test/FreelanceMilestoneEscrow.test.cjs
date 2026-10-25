@@ -1,8 +1,9 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
-describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", function () {
+describe("FreelanceMilestoneEscrow — Core Lifecycle & Pull-over-Push Withdrawals", function () {
   async function deployEscrowFixture() {
     const [client, freelancer, arbitrator, attacker] = await ethers.getSigners();
 
@@ -19,7 +20,7 @@ describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", func
       currentTime + 3600 * 24 * 21,
     ];
 
-    const Factory = await ethers.getContractFactory("FreelanceEscrow");
+    const Factory = await ethers.getContractFactory("FreelanceMilestoneEscrow");
     const escrow = await Factory.deploy(
       client.address,
       freelancer.address,
@@ -53,22 +54,22 @@ describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", func
     // Non-client funding reverts
     await expect(
       escrow.connect(attacker).fundAgreement({ value: total })
-    ).to.be.revertedWith("FreelanceEscrow: caller is not client");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
     // Underfunding reverts
     await expect(
       escrow.connect(client).fundAgreement({ value: total - 100n })
-    ).to.be.revertedWith("FreelanceEscrow: funding amount must exactly match totalRequired");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: funding amount must exactly match totalRequired");
 
     // Overfunding reverts
     await expect(
       escrow.connect(client).fundAgreement({ value: total + 100n })
-    ).to.be.revertedWith("FreelanceEscrow: funding amount must exactly match totalRequired");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: funding amount must exactly match totalRequired");
 
     // Exact funding succeeds
     await expect(escrow.connect(client).fundAgreement({ value: total }))
       .to.emit(escrow, "FundingReceived")
-      .withArgs(client.address, total, await time.latest());
+      .withArgs(client.address, total, anyValue);
 
     expect(await escrow.agreementState()).to.equal(1); // Active
     expect(await escrow.totalReserved()).to.equal(total);
@@ -84,7 +85,7 @@ describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", func
       escrow.connect(freelancer).submitMilestone(0, "UI prototype completed at ipfs/demo-ref")
     )
       .to.emit(escrow, "MilestoneSubmitted")
-      .withArgs(0, "UI prototype completed at ipfs/demo-ref", await time.latest());
+      .withArgs(0, "UI prototype completed at ipfs/demo-ref", anyValue);
 
     const m = await escrow.getMilestone(0);
     expect(m.state_).to.equal(1); // Submitted
@@ -92,7 +93,7 @@ describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", func
     // Client approves milestone 0
     await expect(escrow.connect(client).approveMilestone(0))
       .to.emit(escrow, "MilestoneReleased")
-      .withArgs(0, amounts[0], freelancer.address, await time.latest());
+      .withArgs(0, amounts[0], freelancer.address, anyValue);
 
     // Freelancer withdrawable balance increases by milestone 0 amount
     expect(await escrow.withdrawable(freelancer.address)).to.equal(amounts[0]);
@@ -101,7 +102,7 @@ describe("FreelanceEscrow — Core Lifecycle & Pull-over-Push Withdrawals", func
     const preBalance = await ethers.provider.getBalance(freelancer.address);
     const tx = await escrow.connect(freelancer).withdraw();
     const receipt = await tx.wait();
-    const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+    const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
     const postBalance = await ethers.provider.getBalance(freelancer.address);
     expect(postBalance).to.equal(preBalance + amounts[0] - gasUsed);

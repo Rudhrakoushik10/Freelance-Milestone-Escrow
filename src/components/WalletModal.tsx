@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { HARDHAT_ACCOUNTS, evm } from '../services/evmEngine';
-import { HardhatAccount, Agreement } from '../types/escrow';
+import { evm } from '../services/evmEngine';
+import { web3Service } from '../services/web3Service';
+import { HardhatAccount, Agreement, RpcNodeStatus } from '../types/escrow';
 import {
   X,
   Wallet,
   Copy,
   Check,
-  ArrowUpRight,
   ArrowDownLeft,
   Briefcase,
   Laptop,
@@ -14,9 +14,11 @@ import {
   RotateCcw,
   LogOut,
   ShieldCheck,
-  ExternalLink,
   Coins,
-  CheckCircle2,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface WalletModalProps {
@@ -24,6 +26,7 @@ interface WalletModalProps {
   onClose: () => void;
   activeAccount: HardhatAccount;
   agreements: Agreement[];
+  rpcStatus: RpcNodeStatus;
   onSelectAccount: (id: string) => void;
   onLogout: () => void;
   onOpenReceipt: (tx: any) => void;
@@ -34,12 +37,16 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   onClose,
   activeAccount,
   agreements,
+  rpcStatus,
   onSelectAccount,
   onLogout,
   onOpenReceipt,
 }) => {
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   if (!isOpen) return null;
 
@@ -47,6 +54,23 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     navigator.clipboard.writeText(activeAccount.address);
     setCopiedAddress(true);
     setTimeout(() => setCopiedAddress(false), 2000);
+  };
+
+  const handleSyncBalance = async () => {
+    try {
+      setSyncing(true);
+      setWithdrawError(null);
+      const isOnline = await web3Service.checkLocalNode();
+      if (!isOnline) {
+        setWithdrawError(
+          'Hardhat RPC Server (http://127.0.0.1:8545) is offline. Please start "npx hardhat node".'
+        );
+      } else {
+        await evm.syncWithLiveChain();
+      }
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // Compute total withdrawable credits across agreements for active account
@@ -77,27 +101,33 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     if (withdrawableAgreements.length === 0) return;
     try {
       setWithdrawing(true);
+      setWithdrawError(null);
       for (const item of withdrawableAgreements) {
         const tx = await evm.withdraw(item.address);
         onOpenReceipt(tx);
       }
     } catch (err: any) {
-      alert(err.message || 'Withdrawal failed');
+      setWithdrawError(err.message || 'Withdrawal failed');
     } finally {
       setWithdrawing(false);
     }
   };
 
   const handleResetData = () => {
-    if (window.confirm('Reset local EVM testnet state and re-seed defaults?')) {
-      evm.resetState();
-      onClose();
+    if (!confirmReset) {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 5000);
+      return;
     }
+    evm.resetState();
+    setConfirmReset(false);
+    onClose();
   };
 
-  const clientAccounts = HARDHAT_ACCOUNTS.filter((a) => a.role === 'client');
-  const freelancerAccounts = HARDHAT_ACCOUNTS.filter((a) => a.role === 'freelancer');
-  const arbitratorAccounts = HARDHAT_ACCOUNTS.filter((a) => a.role === 'arbitrator');
+  const accounts = evm.getAccounts();
+  const clientAccounts = accounts.filter((a) => a.role === 'client');
+  const freelancerAccounts = accounts.filter((a) => a.role === 'freelancer');
+  const arbitratorAccounts = accounts.filter((a) => a.role === 'arbitrator');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
@@ -109,7 +139,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               <Wallet className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-extrabold text-slate-900">
                   Non-Custodial Escrow Wallet
                 </h3>
@@ -122,9 +152,22 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 }`}>
                   {activeAccount.roleLabel}
                 </span>
+                {rpcStatus.isNodeOnline ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    <Wifi className="w-3 h-3 text-emerald-600" />
+                    Connected
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">
+                    <WifiOff className="w-3 h-3 text-rose-600" />
+                    Disconnected (Server Closed)
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 font-mono">
-                Chain ID 31337 · Local EVM Testnet Node
+                {rpcStatus.isNodeOnline
+                  ? `Chain ID ${rpcStatus.chainId} · Hardhat RPC (${rpcStatus.rpcUrl}) · Block #${rpcStatus.latestBlock}`
+                  : 'Hardhat RPC Server (http://127.0.0.1:8545) is OFFLINE'}
               </p>
             </div>
           </div>
@@ -138,15 +181,63 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {!rpcStatus.isNodeOnline && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold flex items-center gap-1.5 text-rose-800">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  Hardhat Server Closed — Wallet Disconnected
+                </span>
+                <button
+                  onClick={handleSyncBalance}
+                  disabled={syncing}
+                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+                  Reconnect
+                </button>
+              </div>
+              <p className="text-rose-700 leading-relaxed">
+                The local Hardhat node at <code className="font-mono font-bold">http://127.0.0.1:8545</code> is not responding. Start <code className="font-mono font-bold">npx hardhat node</code> in your terminal to restore live wallet connectivity.
+              </p>
+            </div>
+          )}
+
+          {withdrawError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-xs">
+              <span>{withdrawError}</span>
+              <button
+                onClick={() => setWithdrawError(null)}
+                className="text-rose-700 font-bold underline text-[11px] ml-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {/* Active Balance Hero Card */}
           <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl relative overflow-hidden">
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <span className="text-xs font-medium text-indigo-200/80 block">
-                  Available Wallet Balance
+                  {rpcStatus.isNodeOnline
+                    ? 'Live On-Chain Wallet Balance (Hardhat RPC)'
+                    : 'Wallet Status: Disconnected (Hardhat Offline)'}
                 </span>
-                <div className="text-3xl font-extrabold font-mono tracking-tight mt-0.5">
-                  {activeAccount.balance} <span className="text-indigo-300 text-xl font-normal">ETH</span>
+                <div className="flex flex-wrap items-center gap-3 mt-1">
+                  <div className="text-3xl font-extrabold font-mono tracking-tight">
+                    {rpcStatus.isNodeOnline ? activeAccount.balance : '—'}{' '}
+                    <span className="text-indigo-300 text-xl font-normal">ETH</span>
+                  </div>
+                  <button
+                    onClick={handleSyncBalance}
+                    disabled={syncing}
+                    className="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 text-xs font-semibold text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                    title="Sync live ETH balance from http://127.0.0.1:8545"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-300 ${syncing ? 'animate-spin' : ''}`} />
+                    <span>{syncing ? 'Syncing...' : 'Sync RPC Balance'}</span>
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-xs font-mono text-slate-300">
                   <span className="truncate max-w-[220px] sm:max-w-[280px]">
@@ -190,7 +281,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               {withdrawableEthTotal > 0 && (
                 <button
                   onClick={handleWithdrawAll}
-                  disabled={withdrawing}
+                  disabled={withdrawing || !rpcStatus.isNodeOnline}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all shrink-0 flex items-center justify-center gap-1.5"
                 >
                   <ArrowDownLeft className="w-4 h-4" />
@@ -221,7 +312,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               <span>Strict Single-Role Account Architecture</span>
             </div>
             <p className="leading-relaxed">
-              In this decentralized escrow system, each account is permanently bound to exactly <strong>one role</strong> ({activeAccount.roleLabel}) to eliminate conflicts of interest. To perform a different role, switch to a designated account below:
+              Each account is permanently bound to exactly <strong>one role</strong> ({activeAccount.roleLabel}). Switch between the 3 dedicated accounts below:
             </p>
           </div>
 
@@ -235,9 +326,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             <div className="space-y-1.5">
               <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
                 <Briefcase className="w-3.5 h-3.5" />
-                Client Accounts (Commissions, Funds & Approves)
+                Client Account (Alex)
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {clientAccounts.map((acc) => (
                   <button
                     key={acc.id}
@@ -250,9 +341,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   >
                     <div>
                       <div className="font-bold text-xs text-slate-900">{acc.name}</div>
-                      <div className="text-[11px] font-mono text-slate-500">@{acc.username}</div>
+                      <div className="text-[11px] font-mono text-slate-500">@{acc.username} · {acc.address.substring(0, 10)}...</div>
                     </div>
-                    <span className="font-mono text-xs font-bold text-slate-800">{acc.balance} ETH</span>
+                    <span className="font-mono text-xs font-bold text-slate-800">
+                      {rpcStatus.isNodeOnline ? `${acc.balance} ETH` : 'Offline'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -262,9 +355,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             <div className="space-y-1.5 pt-2">
               <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
                 <Laptop className="w-3.5 h-3.5" />
-                Freelancer Accounts (Delivers Work & Earns Payouts)
+                Freelancer Account (Stark)
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {freelancerAccounts.map((acc) => (
                   <button
                     key={acc.id}
@@ -277,9 +370,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   >
                     <div>
                       <div className="font-bold text-xs text-slate-900">{acc.name}</div>
-                      <div className="text-[11px] font-mono text-slate-500">@{acc.username}</div>
+                      <div className="text-[11px] font-mono text-slate-500">@{acc.username} · {acc.address.substring(0, 10)}...</div>
                     </div>
-                    <span className="font-mono text-xs font-bold text-slate-800">{acc.balance} ETH</span>
+                    <span className="font-mono text-xs font-bold text-slate-800">
+                      {rpcStatus.isNodeOnline ? `${acc.balance} ETH` : 'Offline'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -289,9 +384,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             <div className="space-y-1.5 pt-2">
               <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
                 <Scale className="w-3.5 h-3.5" />
-                Arbitrator Accounts (Impartial Dispute Resolution)
+                Arbitrator Account (Mark)
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {arbitratorAccounts.map((acc) => (
                   <button
                     key={acc.id}
@@ -304,9 +399,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   >
                     <div>
                       <div className="font-bold text-xs text-slate-900">{acc.name}</div>
-                      <div className="text-[11px] font-mono text-slate-500">@{acc.username}</div>
+                      <div className="text-[11px] font-mono text-slate-500">@{acc.username} · {acc.address.substring(0, 10)}...</div>
                     </div>
-                    <span className="font-mono text-xs font-bold text-slate-800">{acc.balance} ETH</span>
+                    <span className="font-mono text-xs font-bold text-slate-800">
+                      {rpcStatus.isNodeOnline ? `${acc.balance} ETH` : 'Offline'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -316,13 +413,31 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-200/60 bg-slate-50/80 flex items-center justify-between gap-3 shrink-0">
-          <button
-            onClick={handleResetData}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-            Reset Node State
-          </button>
+          {confirmReset ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-rose-600 font-medium">Reset state?</span>
+              <button
+                onClick={handleResetData}
+                className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-bold shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
+              >
+                Yes, Reset
+              </button>
+              <button
+                onClick={() => setConfirmReset(false)}
+                className="px-2 py-1 rounded-lg text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleResetData}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+              Reset Node State
+            </button>
+          )}
 
           <button
             onClick={() => {

@@ -1,6 +1,6 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 describe("EscrowFactory — Independent Agreement Deployment & Indexing", function () {
   it("should deploy independent escrows and track addresses per participant", async function () {
@@ -22,7 +22,7 @@ describe("EscrowFactory — Independent Agreement Deployment & Indexing", functi
       deadlines
     );
     const receipt = await tx.wait();
-    expect(receipt!.status).to.equal(1);
+    expect(receipt.status).to.equal(1);
 
     expect(await factory.getEscrowCount()).to.equal(1);
     const all = await factory.getAllEscrows();

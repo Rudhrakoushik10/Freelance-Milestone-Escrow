@@ -44,6 +44,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenWallet,
 }) => {
   const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const notifications: NotificationRecord[] = evm.getNotifications(activeAccount.address);
 
   // Aggregate stats
@@ -117,10 +118,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const handleWithdrawAll = async (agrAddress: string) => {
     try {
       setWithdrawing(true);
+      setWithdrawError(null);
       const tx = await evm.withdraw(agrAddress);
       onOpenReceipt(tx);
     } catch (err: any) {
-      alert(err.message || 'Withdrawal failed');
+      setWithdrawError(err.message || 'Withdrawal failed');
     } finally {
       setWithdrawing(false);
     }
@@ -143,6 +145,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {withdrawError && (
+        <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-xs">
+          <span>{withdrawError}</span>
+          <button
+            onClick={() => setWithdrawError(null)}
+            className="text-rose-700 font-bold underline cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Prominent Single-Role Workspace Banner */}
       <div className="rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 p-5 sm:p-6 shadow-xl shadow-indigo-950/5 space-y-4">

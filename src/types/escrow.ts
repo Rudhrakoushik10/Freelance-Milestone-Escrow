@@ -59,6 +59,9 @@ export interface DecodedEvent {
 export interface TransactionRecord {
   hash: string;
   blockNumber: number;
+  blockHash?: string;
+  transactionIndex?: number;
+  nonce?: number;
   from: string;
   to: string;
   action: string;
@@ -66,9 +69,27 @@ export interface TransactionRecord {
   status: 'success' | 'reverted';
   revertReason?: string;
   gasUsed: number;
+  cumulativeGasUsed?: number;
+  effectiveGasPriceGwei?: string;
+  calldata?: string;
   timestamp: number;
   events: DecodedEvent[];
   contractAddress?: string;
+  verifiedOnChain?: boolean;
+  executionSource?: 'hardhat_rpc' | 'metamask_rpc' | 'local_evm';
+}
+
+export interface RpcNodeStatus {
+  isNodeOnline: boolean;
+  rpcUrl: string;
+  chainId: number | null;
+  latestBlock: number | null;
+  lastChecked: number;
+  metaMaskConnected: boolean;
+  metaMaskAddress: string | null;
+  metaMaskChainId: number | null;
+  factoryDeployedAddress: string | null;
+  errorMessage?: string;
 }
 
 export interface NotificationRecord {
@@ -79,7 +100,7 @@ export interface NotificationRecord {
   message: string;
   timestamp: number;
   read: boolean;
-  contractAddress: string;
+  contractAddress?: string;
   milestoneIndex?: number;
   txHash?: string;
   amountEth?: string;

@@ -1,8 +1,8 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
-describe("FreelanceEscrow — Financial Invariants & Zero-Leakage Accounting", function () {
+describe("FreelanceMilestoneEscrow — Financial Invariants & Zero-Leakage Accounting", function () {
   it("should preserve contract balance == totalReserved + sum(withdrawable) at all times", async function () {
     const [client, freelancer, arbitrator] = await ethers.getSigners();
     const titles = ["Phase 1", "Phase 2", "Phase 3"];
@@ -10,7 +10,7 @@ describe("FreelanceEscrow — Financial Invariants & Zero-Leakage Accounting", f
     const currentTime = await time.latest();
     const deadlines = [currentTime + 1000, currentTime + 2000, currentTime + 3000];
 
-    const Factory = await ethers.getContractFactory("FreelanceEscrow");
+    const Factory = await ethers.getContractFactory("FreelanceMilestoneEscrow");
     const escrow = await Factory.deploy(
       client.address,
       freelancer.address,

@@ -1,22 +1,66 @@
 # Security Specification & Threat Model
 
-## 1. Trust Assumptions & Access Boundaries
+## 1. Trust Assumptions & Role Boundaries
 
-- **Client**: Authorized to create agreements and fund total milestone commitments. Can approve deliverables, raise disputes, and claim refunds on unstarted cancelled phases. Cannot unilaterally drain submitted or released milestones.
-- **Freelancer**: Authorized to accept assignments, submit deliverables, raise disputes, and withdraw credited earnings. Cannot approve own work or withdraw beyond credited balance.
-- **Arbitrator**: Authorized strictly to resolve contested milestones. Cannot reassign roles, create unbacked payments, or touch non-disputed milestone funds.
-- **Unauthorized Callers / Attackers**: Any arbitrary external address. Strictly blocked by role-based modifiers (`onlyClient`, `onlyFreelancer`, `onlyArbitrator`).
+The **Freelance Milestone Escrow** protocol enforces strict cryptographic access control across three mutually exclusive participant roles:
+
+- **Client (`Alex` — `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`)**:
+  - Authorized to deploy agreements via `EscrowFactory`, deposit 100% upfront ETH via `fundAgreement()`, approve submitted deliverables via `approveMilestone()`, raise disputes on submitted phases, and claim refunds on unstarted `Pending` milestones via `refundMilestone()`.
+  - Cannot unilaterally claw back funds once a milestone has been `Submitted`, `Disputed`, `Released`, or `Resolved`.
+- **Freelancer (`Stark` — `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`)**:
+  - Authorized to submit deliverable proofs before milestone deadlines via `submitMilestone()`, raise disputes on submitted milestones, and pull earned funds via `withdraw()`.
+  - Cannot approve own milestones or withdraw more than `withdrawable[freelancer]`.
+- **Arbitrator (`Mark` — `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`)**:
+  - Authorized exclusively to settle milestones in the `Disputed` state via `resolveDispute(index, freelancerShareBps)`.
+  - Cannot divert funds to the arbitrator address, cannot touch non-disputed milestones, and cannot initiate withdrawals.
+- **External / Unauthorized Callers**:
+  - Any address not matching the immutable role addresses is immediately rejected by `onlyClient`, `onlyFreelancer`, `onlyArbitrator`, or `onlyClientOrFreelancer`.
 
 ---
 
-## 2. Threat Analysis & Mitigations
+## 2. Defense-in-Depth Mechanisms
 
-| Threat | Attack Vector | Smart Contract Mitigation |
-| :--- | :--- | :--- |
-| **Reentrancy Attacks** | Malicious contract invokes `withdraw()` recursively during ETH transfer | `nonReentrant` modifier combined with Checks-Effects-Interactions (credit mapping is set to 0 before the `.call{value: amount}("")` transfer). |
-| **Denial of Service (DoS)** | Malicious client or freelancer refuses incoming ETH to halt milestone progression | Pull-over-push architecture: approvals update internal balances (`withdrawable[user]`); external ETH transfers only occur when explicitly pulled by the beneficiary. |
-| **Fractional Wei Leakage** | Division remainders during dispute splits leave dust trapped in the contract | Derived exact subtraction: `clientRefund = amount - freelancerShare`. Zero wei remains unallocated. |
-| **Unauthorized State Mutation** | Attacker calls `approveMilestone()`, `fundAgreement()`, or `resolveDispute()` | Modifiers enforce caller validation on-chain (`require(msg.sender == client)`, etc.). |
-| **State Desynchronization** | Attempting to submit after deadline or approve an unsubmitted phase | Strict enum finite state machine (`m.state == MilestoneState.Submitted`). Invalid transitions immediately revert. |
-| **Underfunding & Overfunding** | Calling funding method with incorrect ETH amount | Exact balance enforcement: `require(msg.value == totalRequired)`. |
-| **Cross-Role Pollution** | Single account attempting to act simultaneously as Client and Freelancer on same contract | Construction validation: `require(client != freelancer && client != arbitrator && freelancer != arbitrator)`. |
+### 2.1 OpenZeppelin `ReentrancyGuard` + CEI Pattern
+`FreelanceMilestoneEscrow.sol` inherits directly from `@openzeppelin/contracts/utils/ReentrancyGuard.sol`:
+```solidity
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract FreelanceMilestoneEscrow is ReentrancyGuard {
+    function withdraw() external nonReentrant {
+        uint256 amount = withdrawable[msg.sender];
+        require(amount > 0, "FreelanceMilestoneEscrow: no withdrawable balance");
+
+        // Effects before Interactions
+        withdrawable[msg.sender] = 0;
+        totalWithdrawn += amount;
+
+        // Interaction
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "FreelanceMilestoneEscrow: ETH transfer failed");
+
+        emit Withdrawal(msg.sender, amount, block.timestamp);
+    }
+}
+```
+Even if a recipient address is a smart contract with a malicious `receive()` fallback that attempts to re-enter `withdraw()`, `nonReentrant` immediately reverts with `ReentrancyGuardReentrantCall()`, and the `withdrawable[msg.sender]` balance is already zeroed.
+
+### 2.2 Pull-Over-Push Settlement (DoS Immunity)
+Neither `approveMilestone()`, `resolveDispute()`, nor `refundMilestone()` performs an external `.call{value: ...}` transfer. Instead, they update internal accounting (`withdrawable[recipient] += amount`). A malicious or reverting counterparty contract can never block state transitions or freeze the agreement.
+
+### 2.3 Formal Solvency Invariant
+The contract exposes `verifyAccountingInvariant()` which asserts at runtime:
+$$\text{address(this).balance} == \text{totalReserved} + \text{withdrawable}[\text{client}] + \text{withdrawable}[\text{freelancer}]$$
+
+---
+
+## 3. Threat Matrix & Mitigations
+
+| Threat / Vulnerability Class | Attack Vector | Smart Contract Mitigation (`FreelanceMilestoneEscrow.sol`) | Verification Test Suite |
+| :--- | :--- | :--- | :--- |
+| **Recursive Reentrancy** | Malicious contract calls `withdraw()` recursively in `receive()` fallback | OpenZeppelin `nonReentrant` modifier + zeroing `withdrawable[msg.sender] = 0` prior to external `.call` | `test/FreelanceMilestoneEscrow.test.cjs` |
+| **Push-Payment DoS** | Recipient contract reverts on incoming ETH to block `resolveDispute` or `approveMilestone` | Pull-over-push pattern separates ledger crediting from ETH transfer | `test/DisputesAndRefunds.test.cjs` |
+| **Precision / Dust Leakage** | Integer division remainders in percentage splits trap wei in contract forever | Exact subtraction: `clientRefund = m.amount - freelancerShare` | `test/AccountingInvariant.test.cjs` |
+| **Privilege Escalation** | Unauthorized caller invokes `approveMilestone`, `fundAgreement`, or `resolveDispute` | Strict immutable role modifiers (`onlyClient`, `onlyFreelancer`, `onlyArbitrator`) | `test/AccessControl.test.cjs` |
+| **Role Collusion / Self-Arbitration** | Same address assigned to both Client and Arbitrator (or Freelancer) | Constructor pairwise uniqueness assertions (`client != freelancer`, `client != arbitrator`, `freelancer != arbitrator`) | `test/EscrowFactory.test.cjs` |
+| **State Machine Bypass** | Approving an unsubmitted milestone or disputing an already released milestone | Explicit `MilestoneState` enum checks (`require(m.state == MilestoneState.Submitted)`) | `test/AccessControl.test.cjs` |
+| **Underfunded / Overfunded Escrow** | Client sends partial ETH or excess ETH during `fundAgreement()` | Exact value assertion (`require(msg.value == totalRequired)`) and rejection of direct `receive()` transfers | `test/AccountingInvariant.test.cjs` |

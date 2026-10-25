@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import "./FreelanceEscrow.sol";
+import "./FreelanceMilestoneEscrow.sol";
 
 /**
  * @title EscrowFactory
- * @notice Factory for deploying and tracking independent FreelanceEscrow instances.
+ * @notice Factory for deploying and tracking independent FreelanceMilestoneEscrow instances.
  * @dev Does NOT hold escrow funds and has no backdoor withdrawal permissions.
  */
 contract EscrowFactory {
@@ -36,7 +36,7 @@ contract EscrowFactory {
     );
 
     /**
-     * @notice Deploys a new FreelanceEscrow contract instance.
+     * @notice Deploys a new FreelanceMilestoneEscrow contract instance.
      */
     function createAgreement(
         address _freelancer,
@@ -46,7 +46,7 @@ contract EscrowFactory {
         uint256[] memory _milestoneAmounts,
         uint256[] memory _milestoneDeadlines
     ) external returns (address escrowAddress) {
-        FreelanceEscrow escrow = new FreelanceEscrow(
+        FreelanceMilestoneEscrow escrow = new FreelanceMilestoneEscrow(
             msg.sender,
             _freelancer,
             _arbitrator,

@@ -48,6 +48,7 @@ export const AgreementDetailView: React.FC<AgreementDetailViewProps> = ({
   // Add Milestone Modal State
   const [showAddMilestoneModal, setShowAddMilestoneModal] = React.useState(false);
   const [newMilestoneTitle, setNewMilestoneTitle] = React.useState('');
+  const [confirmRefundMilestoneIndex, setConfirmRefundMilestoneIndex] = React.useState<number | null>(null);
   const [newMilestoneAmount, setNewMilestoneAmount] = React.useState('0.25');
   const [newMilestoneDays, setNewMilestoneDays] = React.useState(14);
 
@@ -192,10 +193,10 @@ export const AgreementDetailView: React.FC<AgreementDetailViewProps> = ({
   };
 
   const handleRefundMilestone = async (index: number) => {
-    if (!window.confirm('Cancel and refund this unstarted milestone?')) return;
     try {
       setActionLoading(true);
       setErrorMessage(null);
+      setConfirmRefundMilestoneIndex(null);
       const tx = await evm.refundMilestone(agreement.address, index);
       onOpenReceipt(tx);
     } catch (err: any) {
@@ -541,13 +542,32 @@ export const AgreementDetailView: React.FC<AgreementDetailViewProps> = ({
 
                     {/* Client: Refund unstarted milestone */}
                     {isPending && agreement.agreementState === 'Active' && isClient && (
-                      <button
-                        onClick={() => handleRefundMilestone(milestone.index)}
-                        disabled={actionLoading}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
-                      >
-                        Refund Unstarted
-                      </button>
+                      confirmRefundMilestoneIndex === milestone.index ? (
+                        <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 p-1 rounded-lg">
+                          <span className="text-[11px] text-rose-700 font-medium px-1">Refund milestone?</span>
+                          <button
+                            onClick={() => handleRefundMilestone(milestone.index)}
+                            disabled={actionLoading}
+                            className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-colors shadow-xs"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmRefundMilestoneIndex(null)}
+                            className="px-1.5 py-1 rounded text-slate-500 hover:text-slate-800 text-[11px]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmRefundMilestoneIndex(milestone.index)}
+                          disabled={actionLoading}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
+                        >
+                          Refund Unstarted
+                        </button>
+                      )
                     )}
 
                   </div>

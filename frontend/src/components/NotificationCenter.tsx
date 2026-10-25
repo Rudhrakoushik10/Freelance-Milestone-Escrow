@@ -97,6 +97,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   return (
     <div className="rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg shadow-indigo-950/5 overflow-hidden transition-all">
+      {/* Header bar */}
       <div className="px-6 py-4 border-b border-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center relative shrink-0 shadow-xs">
@@ -120,6 +121,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </div>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
@@ -133,6 +135,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
       </div>
 
+      {/* Filter Bar */}
       <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-200/40 flex items-center justify-between gap-4 overflow-x-auto text-xs">
         <div className="flex items-center gap-1.5">
           <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -204,6 +207,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </span>
       </div>
 
+      {/* Notifications List */}
       <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
         {filteredNotifs.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs space-y-2">
@@ -222,6 +226,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               }`}
             >
               <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                {/* Icon Circle */}
                 <div className={`p-2 rounded-xl border shrink-0 mt-0.5 shadow-xs ${getNotifBadgeStyle(n.type)}`}>
                   {getNotifIcon(n.type)}
                 </div>
@@ -256,14 +261,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 </div>
               </div>
 
+              {/* Action Buttons */}
               <div className="flex items-center gap-2 shrink-0 pt-0.5">
                 {n.contractAddress && (
                   <button
                     onClick={() => {
                       evm.markAsRead(n.id);
-                      onSelectAgreement(n.contractAddress);
+                      if (n.contractAddress) {
+                        onSelectAgreement(n.contractAddress);
+                      }
                     }}
-                    className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs"
+                    className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                    title="Open details for this agreement"
                   >
                     <span>View</span>
                     <ExternalLink className="w-3 h-3" />
@@ -272,8 +281,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
                 {!n.read ? (
                   <button
-                    onClick={() => evm.markAsRead(n.id)}
+                    onClick={() => evm.markAllAsRead(activeAccount.address)}
                     className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
+                    title="Mark as Read"
                   >
                     <Check className="w-4 h-4" />
                   </button>
@@ -281,6 +291,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   <button
                     onClick={() => evm.deleteNotification(n.id)}
                     className="p-1.5 rounded-lg hover:bg-rose-100 text-slate-300 hover:text-rose-600 transition-colors"
+                    title="Delete Notification"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

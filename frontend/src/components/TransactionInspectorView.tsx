@@ -1,24 +1,27 @@
 import React from 'react';
-import { TransactionRecord } from '../types/escrow';
+import { RpcNodeStatus, TransactionRecord } from '../types/escrow';
 import {
   CheckCircle2,
   XCircle,
   Copy,
   Check,
   Search,
-  Filter,
   Layers,
   Fuel,
-  ExternalLink,
+  ShieldCheck,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 interface TransactionInspectorViewProps {
   transactions: TransactionRecord[];
+  rpcStatus?: RpcNodeStatus;
   onOpenReceipt: (tx: TransactionRecord) => void;
 }
 
 export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> = ({
   transactions,
+  rpcStatus,
   onOpenReceipt,
 }) => {
   const [filter, setFilter] = React.useState<'all' | 'success' | 'reverted'>('all');
@@ -57,11 +60,34 @@ export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> =
             <img src="/logo.png" alt="Platform Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Platform Activity Log & Escrow Ledger
-            </h2>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                On-Chain Activity Log & Verifiable Escrow Ledger
+              </h2>
+              {rpcStatus && (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${
+                    rpcStatus.isNodeOnline
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}
+                >
+                  {rpcStatus.isNodeOnline ? (
+                    <>
+                      <Wifi className="w-3 h-3 text-emerald-600" />
+                      <span>Hardhat RPC Online · Block #{rpcStatus.latestBlock}</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="w-3 h-3 text-rose-600" />
+                      <span>Hardhat RPC Offline (127.0.0.1:8545)</span>
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-1">
-              Immutable records of all agreement creations, escrow fundings, milestone submissions, approvals, and withdrawals.
+              Every transaction is mined on the local Hardhat EVM node. Click any record to inspect its block hash, calldata, and verify live via <code className="font-mono">eth_getTransactionReceipt</code>.
             </p>
           </div>
         </div>
@@ -119,7 +145,7 @@ export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> =
       <div className="rounded-2xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg shadow-indigo-950/5 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm">
-            No transactions found matching your criteria.
+            No on-chain transactions recorded yet. Deploy or fund an agreement while connected to the Hardhat RPC server.
           </div>
         ) : (
           <div className="divide-y divide-slate-200/50">
@@ -132,7 +158,7 @@ export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> =
                   className="p-5 hover:bg-white/50 transition-colors cursor-pointer space-y-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       {isSuccess ? (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       ) : (
@@ -150,6 +176,10 @@ export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> =
                       >
                         {tx.status}
                       </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-semibold">
+                        <ShieldCheck className="w-3 h-3" />
+                        Click to Verify via RPC
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-3 text-xs font-mono text-slate-500">
@@ -157,6 +187,12 @@ export const TransactionInspectorView: React.FC<TransactionInspectorViewProps> =
                         <Layers className="w-3.5 h-3.5 text-slate-400" />
                         Block #{tx.blockNumber}
                       </span>
+                      {tx.nonce !== undefined && (
+                        <>
+                          <span>·</span>
+                          <span>Nonce #{tx.nonce}</span>
+                        </>
+                      )}
                       <span>·</span>
                       <span className="flex items-center gap-1">
                         <Fuel className="w-3.5 h-3.5 text-slate-400" />

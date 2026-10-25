@@ -1,8 +1,8 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
-describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
+describe("FreelanceMilestoneEscrow — Access Control & Role Boundaries", function () {
   it("should prevent unauthorized callers from executing privileged operations", async function () {
     const [client, freelancer, arbitrator, attacker] = await ethers.getSigners();
     const titles = ["Milestone 1"];
@@ -10,7 +10,7 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     const currentTime = await time.latest();
     const deadlines = [currentTime + 10000];
 
-    const Factory = await ethers.getContractFactory("FreelanceEscrow");
+    const Factory = await ethers.getContractFactory("FreelanceMilestoneEscrow");
     const escrow = await Factory.deploy(
       client.address,
       freelancer.address,
@@ -24,7 +24,7 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     // Attacker cannot fund
     await expect(
       escrow.connect(attacker).fundAgreement({ value: amounts[0] })
-    ).to.be.revertedWith("FreelanceEscrow: caller is not client");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
     // Client funds properly
     await escrow.connect(client).fundAgreement({ value: amounts[0] });
@@ -32,7 +32,7 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     // Attacker cannot submit milestone
     await expect(
       escrow.connect(attacker).submitMilestone(0, "Hacker note")
-    ).to.be.revertedWith("FreelanceEscrow: caller is not freelancer");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not freelancer");
 
     // Freelancer submits milestone
     await escrow.connect(freelancer).submitMilestone(0, "Valid note");
@@ -40,17 +40,17 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     // Attacker cannot approve
     await expect(
       escrow.connect(attacker).approveMilestone(0)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not client");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
     // Freelancer cannot approve their own milestone
     await expect(
       escrow.connect(freelancer).approveMilestone(0)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not client");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client");
 
     // Attacker cannot raise dispute
     await expect(
       escrow.connect(attacker).raiseDispute(0)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not client or freelancer");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not client or freelancer");
 
     // Client raises dispute
     await escrow.connect(client).raiseDispute(0);
@@ -58,16 +58,16 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     // Neither client nor freelancer can resolve dispute
     await expect(
       escrow.connect(client).resolveDispute(0, 5000)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not arbitrator");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not arbitrator");
 
     await expect(
       escrow.connect(freelancer).resolveDispute(0, 5000)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not arbitrator");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not arbitrator");
 
     // Attacker cannot resolve dispute
     await expect(
       escrow.connect(attacker).resolveDispute(0, 5000)
-    ).to.be.revertedWith("FreelanceEscrow: caller is not arbitrator");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: caller is not arbitrator");
 
     // Arbitrator resolves dispute successfully
     await escrow.connect(arbitrator).resolveDispute(0, 6000);
@@ -75,6 +75,6 @@ describe("FreelanceEscrow — Access Control & Role Boundaries", function () {
     // Attacker cannot withdraw others' funds
     await expect(
       escrow.connect(attacker).withdraw()
-    ).to.be.revertedWith("FreelanceEscrow: no withdrawable balance");
+    ).to.be.revertedWith("FreelanceMilestoneEscrow: no withdrawable balance");
   });
 });

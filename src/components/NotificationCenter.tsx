@@ -267,9 +267,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   <button
                     onClick={() => {
                       evm.markAsRead(n.id);
-                      onSelectAgreement(n.contractAddress);
+                      if (n.contractAddress) {
+                        onSelectAgreement(n.contractAddress);
+                      }
                     }}
-                    className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs"
+                    className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
                     title="Open details for this agreement"
                   >
                     <span>View</span>
@@ -279,7 +281,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
                 {!n.read ? (
                   <button
-                    onClick={() => evm.markAsRead(n.id)}
+                    onClick={() => evm.markAllAsRead(activeAccount.address)}
                     className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
                     title="Mark as Read"
                   >

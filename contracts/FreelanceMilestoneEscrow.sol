@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 /**
- * @title FreelanceEscrow
+ * @title FreelanceMilestoneEscrow
  * @notice Multi-milestone escrow smart contract for freelance agreements.
  * @dev Enforces explicit state machines, role-based access control, pull-over-push
  *      withdrawal accounting, basis-point dispute resolution, and invariant preservation:
  *      address(this).balance == totalReserved + sum(withdrawable[user])
  */
-contract FreelanceEscrow {
+contract FreelanceMilestoneEscrow is ReentrancyGuard {
     // --- State Machine Enums ---
     enum AgreementState {
         Unfunded,
@@ -55,11 +57,6 @@ contract FreelanceEscrow {
 
     // Milestones storage
     Milestone[] private milestones;
-
-    // --- Reentrancy Guard ---
-    uint256 private _status;
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
 
     // --- Events ---
     event AgreementCreated(
@@ -123,38 +120,31 @@ contract FreelanceEscrow {
 
     // --- Modifiers ---
     modifier onlyClient() {
-        require(msg.sender == client, "FreelanceEscrow: caller is not client");
+        require(msg.sender == client, "FreelanceMilestoneEscrow: caller is not client");
         _;
     }
 
     modifier onlyFreelancer() {
-        require(msg.sender == freelancer, "FreelanceEscrow: caller is not freelancer");
+        require(msg.sender == freelancer, "FreelanceMilestoneEscrow: caller is not freelancer");
         _;
     }
 
     modifier onlyArbitrator() {
-        require(msg.sender == arbitrator, "FreelanceEscrow: caller is not arbitrator");
+        require(msg.sender == arbitrator, "FreelanceMilestoneEscrow: caller is not arbitrator");
         _;
     }
 
     modifier onlyParticipant() {
         require(
             msg.sender == client || msg.sender == freelancer,
-            "FreelanceEscrow: caller is not client or freelancer"
+            "FreelanceMilestoneEscrow: caller is not client or freelancer"
         );
         _;
     }
 
     modifier inAgreementState(AgreementState expected) {
-        require(agreementState == expected, "FreelanceEscrow: invalid agreement state");
+        require(agreementState == expected, "FreelanceMilestoneEscrow: invalid agreement state");
         _;
-    }
-
-    modifier nonReentrant() {
-        require(_status != _ENTERED, "FreelanceEscrow: reentrant call");
-        _status = _ENTERED;
-        _;
-        _status = _NOT_ENTERED;
     }
 
     /**
@@ -176,21 +166,21 @@ contract FreelanceEscrow {
         uint256[] memory _milestoneAmounts,
         uint256[] memory _milestoneDeadlines
     ) {
-        require(_client != address(0), "FreelanceEscrow: client cannot be zero address");
-        require(_freelancer != address(0), "FreelanceEscrow: freelancer cannot be zero address");
-        require(_arbitrator != address(0), "FreelanceEscrow: arbitrator cannot be zero address");
+        require(_client != address(0), "FreelanceMilestoneEscrow: client cannot be zero address");
+        require(_freelancer != address(0), "FreelanceMilestoneEscrow: freelancer cannot be zero address");
+        require(_arbitrator != address(0), "FreelanceMilestoneEscrow: arbitrator cannot be zero address");
 
         // Distinct roles requirement
-        require(_client != _freelancer, "FreelanceEscrow: client and freelancer must differ");
-        require(_client != _arbitrator, "FreelanceEscrow: client and arbitrator must differ");
-        require(_freelancer != _arbitrator, "FreelanceEscrow: freelancer and arbitrator must differ");
+        require(_client != _freelancer, "FreelanceMilestoneEscrow: client and freelancer must differ");
+        require(_client != _arbitrator, "FreelanceMilestoneEscrow: client and arbitrator must differ");
+        require(_freelancer != _arbitrator, "FreelanceMilestoneEscrow: freelancer and arbitrator must differ");
 
         uint256 count = _milestoneTitles.length;
-        require(count > 0, "FreelanceEscrow: must have at least one milestone");
-        require(count <= 10, "FreelanceEscrow: milestone count exceeds max 10");
+        require(count > 0, "FreelanceMilestoneEscrow: must have at least one milestone");
+        require(count <= 10, "FreelanceMilestoneEscrow: milestone count exceeds max 10");
         require(
             _milestoneAmounts.length == count && _milestoneDeadlines.length == count,
-            "FreelanceEscrow: array lengths mismatch"
+            "FreelanceMilestoneEscrow: array lengths mismatch"
         );
 
         client = _client;
@@ -198,14 +188,13 @@ contract FreelanceEscrow {
         arbitrator = _arbitrator;
         title = _title;
         agreementState = AgreementState.Unfunded;
-        _status = _NOT_ENTERED;
 
         uint256 sum = 0;
         for (uint256 i = 0; i < count; i++) {
-            require(_milestoneAmounts[i] > 0, "FreelanceEscrow: milestone amount must be > 0");
+            require(_milestoneAmounts[i] > 0, "FreelanceMilestoneEscrow: milestone amount must be > 0");
             require(
                 _milestoneDeadlines[i] > block.timestamp,
-                "FreelanceEscrow: deadline must be in future"
+                "FreelanceMilestoneEscrow: deadline must be in future"
             );
 
             milestones.push(
@@ -230,7 +219,7 @@ contract FreelanceEscrow {
      * @notice Funds the agreement with exact total milestone sum.
      */
     function fundAgreement() external payable onlyClient inAgreementState(AgreementState.Unfunded) {
-        require(msg.value == totalRequired, "FreelanceEscrow: funding amount must exactly match totalRequired");
+        require(msg.value == totalRequired, "FreelanceMilestoneEscrow: funding amount must exactly match totalRequired");
 
         agreementState = AgreementState.Active;
         totalReserved = msg.value;
@@ -246,11 +235,11 @@ contract FreelanceEscrow {
         onlyFreelancer
         inAgreementState(AgreementState.Active)
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
         Milestone storage m = milestones[index];
-        require(m.state == MilestoneState.Pending, "FreelanceEscrow: milestone not in Pending state");
-        require(block.timestamp <= m.deadline, "FreelanceEscrow: submission deadline passed");
-        require(bytes(note).length <= 256, "FreelanceEscrow: submission note exceeds 256 chars");
+        require(m.state == MilestoneState.Pending, "FreelanceMilestoneEscrow: milestone not in Pending state");
+        require(block.timestamp <= m.deadline, "FreelanceMilestoneEscrow: submission deadline passed");
+        require(bytes(note).length <= 256, "FreelanceMilestoneEscrow: submission note exceeds 256 chars");
 
         m.state = MilestoneState.Submitted;
         m.submissionNote = note;
@@ -267,9 +256,9 @@ contract FreelanceEscrow {
         onlyClient
         inAgreementState(AgreementState.Active)
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
         Milestone storage m = milestones[index];
-        require(m.state == MilestoneState.Submitted, "FreelanceEscrow: milestone not in Submitted state");
+        require(m.state == MilestoneState.Submitted, "FreelanceMilestoneEscrow: milestone not in Submitted state");
 
         // Checks-Effects
         m.state = MilestoneState.Released;
@@ -293,9 +282,9 @@ contract FreelanceEscrow {
         onlyParticipant
         inAgreementState(AgreementState.Active)
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
         Milestone storage m = milestones[index];
-        require(m.state == MilestoneState.Submitted, "FreelanceEscrow: can only dispute Submitted milestone");
+        require(m.state == MilestoneState.Submitted, "FreelanceMilestoneEscrow: can only dispute Submitted milestone");
 
         m.state = MilestoneState.Disputed;
 
@@ -312,11 +301,11 @@ contract FreelanceEscrow {
         onlyArbitrator
         inAgreementState(AgreementState.Active)
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
-        require(freelancerShareBps <= 10000, "FreelanceEscrow: basis points must be <= 10000");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
+        require(freelancerShareBps <= 10000, "FreelanceMilestoneEscrow: basis points must be <= 10000");
 
         Milestone storage m = milestones[index];
-        require(m.state == MilestoneState.Disputed, "FreelanceEscrow: milestone is not in Disputed state");
+        require(m.state == MilestoneState.Disputed, "FreelanceMilestoneEscrow: milestone is not in Disputed state");
 
         // Integer arithmetic with remainder assigned to client to avoid rounding loss
         uint256 fShare = (m.amount * freelancerShareBps) / 10000;
@@ -350,9 +339,9 @@ contract FreelanceEscrow {
         onlyClient
         inAgreementState(AgreementState.Active)
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
         Milestone storage m = milestones[index];
-        require(m.state == MilestoneState.Pending, "FreelanceEscrow: can only refund Pending milestone");
+        require(m.state == MilestoneState.Pending, "FreelanceMilestoneEscrow: can only refund Pending milestone");
 
         m.state = MilestoneState.Refunded;
         m.freelancerShare = 0;
@@ -373,7 +362,7 @@ contract FreelanceEscrow {
      */
     function withdraw() external nonReentrant {
         uint256 amount = withdrawable[msg.sender];
-        require(amount > 0, "FreelanceEscrow: no withdrawable balance");
+        require(amount > 0, "FreelanceMilestoneEscrow: no withdrawable balance");
 
         // Effects before interaction
         withdrawable[msg.sender] = 0;
@@ -381,7 +370,7 @@ contract FreelanceEscrow {
 
         // Interaction
         (bool success, ) = payable(msg.sender).call{value: amount}("");
-        require(success, "FreelanceEscrow: withdrawal transfer failed");
+        require(success, "FreelanceMilestoneEscrow: withdrawal transfer failed");
 
         emit Withdrawal(msg.sender, amount, block.timestamp);
     }
@@ -429,7 +418,7 @@ contract FreelanceEscrow {
             uint256 clientRefund_
         )
     {
-        require(index < milestones.length, "FreelanceEscrow: invalid milestone index");
+        require(index < milestones.length, "FreelanceMilestoneEscrow: invalid milestone index");
         Milestone storage m = milestones[index];
         return (
             m.title,
@@ -453,6 +442,6 @@ contract FreelanceEscrow {
     }
 
     receive() external payable {
-        revert("FreelanceEscrow: direct deposits not accepted");
+        revert("FreelanceMilestoneEscrow: direct deposits not accepted");
     }
 }
