@@ -77,6 +77,7 @@ class Web3Service {
     this.jsonRpcProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
       staticNetwork: false,
       batchMaxCount: 1,
+      cacheTimeout: -1, // Disable ethers internal RPC caching to prevent stale nonces
     });
   }
 
@@ -138,6 +139,32 @@ class Web3Service {
 
   public getStatus(): RpcNodeStatus {
     return { ...this.status };
+  }
+
+  /**
+   * Queries the exact next pending transaction nonce directly from the Hardhat RPC server
+   * with `cache: 'no-store'` so `Nonce too low / nonce has already been used` never occurs.
+   */
+  public async getFreshNonce(address: string): Promise<number> {
+    const response = await fetch(this.hardhatRpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionCount',
+        params: [address, 'pending'],
+        id: Date.now(),
+      }),
+      cache: 'no-store',
+    });
+    const data = await response.json();
+    if (data && typeof data.result === 'string') {
+      return parseInt(data.result, 16);
+    }
+    if (this.jsonRpcProvider) {
+      return await this.jsonRpcProvider.getTransactionCount(address, 'pending');
+    }
+    return 0;
   }
 
   /**
@@ -207,13 +234,25 @@ class Web3Service {
    */
   public async fetchLiveBalances(addresses: string[]): Promise<Record<string, string> | null> {
     const isOnline = await this.checkLocalNode();
-    if (!isOnline || !this.jsonRpcProvider) return null;
+    if (!isOnline) return null;
 
     try {
       const results: Record<string, string> = {};
       await Promise.all(
         addresses.map(async (addr) => {
-          const balWei = await this.jsonRpcProvider!.getBalance(addr);
+          const response = await fetch(this.hardhatRpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_getBalance',
+              params: [addr, 'latest'],
+              id: Date.now(),
+            }),
+            cache: 'no-store',
+          });
+          const data = await response.json();
+          const balWei = data?.result ? BigInt(data.result) : 0n;
           results[addr.toLowerCase()] = parseFloat(ethers.formatEther(balWei)).toFixed(4);
         })
       );
@@ -227,9 +266,21 @@ class Web3Service {
    * Checks if bytecode exists at a given contract address on the live Hardhat node
    */
   public async hasContractCode(address: string): Promise<boolean> {
-    if (!this.status.isNodeOnline || !this.jsonRpcProvider) return false;
+    if (!this.status.isNodeOnline) return false;
     try {
-      const code = await this.jsonRpcProvider.getCode(address);
+      const response = await fetch(this.hardhatRpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_getCode',
+          params: [address, 'latest'],
+          id: Date.now(),
+        }),
+        cache: 'no-store',
+      });
+      const data = await response.json();
+      const code = data?.result;
       return Boolean(code && code !== '0x' && code !== '0x0');
     } catch {
       return false;
@@ -238,14 +289,14 @@ class Web3Service {
 
   /**
    * Ensures EscrowFactory is deployed on the running Hardhat node.
-   * If not yet deployed (or if the node was restarted), deploys it using the Client account.
+   * Uses a fresh provider and explicit uncached nonce so subsequent transactions never collide on nonce.
    */
   public async ensureFactoryDeployed(
     deployerPrivateKey: string,
     knownFactoryAddress?: string
   ): Promise<string> {
     const isOnline = await this.checkLocalNode();
-    if (!isOnline || !this.jsonRpcProvider) {
+    if (!isOnline) {
       throw new Error(
         'Hardhat RPC Server (http://127.0.0.1:8545) is OFFLINE. Wallet disconnected from local blockchain. Please run "npx hardhat node" in your terminal.'
       );
@@ -267,58 +318,27 @@ class Web3Service {
       }
     }
 
-    // Deploy fresh EscrowFactory on the live Hardhat node
-    const wallet = new ethers.Wallet(deployerPrivateKey, this.jsonRpcProvider);
+    // Deploy fresh EscrowFactory on the live Hardhat node with explicit fresh nonce
+    const freshProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
+      staticNetwork: false,
+      batchMaxCount: 1,
+      cacheTimeout: -1,
+    });
+    const wallet = new ethers.Wallet(deployerPrivateKey, freshProvider);
+    const freshNonce = await this.getFreshNonce(wallet.address);
+
     const factory = new ethers.ContractFactory(
       ESCROW_FACTORY_ARTIFACT.abi,
       ESCROW_FACTORY_ARTIFACT.bytecode,
       wallet
     );
-    const contract = await factory.deploy();
+    const contract = await factory.deploy({ nonce: freshNonce });
     await contract.waitForDeployment();
     const deployedAddress = await contract.getAddress();
 
     this.status.factoryDeployedAddress = deployedAddress;
     this.notifyListeners();
     return deployedAddress;
-  }
-
-  /**
-   * Returns an ethers Signer for the active account.
-   * If MetaMask is connected and its active account matches the caller address, uses BrowserProvider signer;
-   * otherwise uses ethers.Wallet(privateKey, jsonRpcProvider) on the live Hardhat node.
-   */
-  private async getSignerForAccount(
-    address: string,
-    privateKey: string
-  ): Promise<{ signer: ethers.Signer; source: 'hardhat_rpc' | 'metamask_rpc' }> {
-    const isOnline = await this.checkLocalNode();
-    if (!isOnline || !this.jsonRpcProvider) {
-      throw new Error(
-        'Hardhat RPC Server (http://127.0.0.1:8545) is CLOSED / OFFLINE. Cannot execute transaction while disconnected from the Hardhat server.'
-      );
-    }
-
-    if (
-      this.status.metaMaskConnected &&
-      this.browserProvider &&
-      this.status.metaMaskAddress?.toLowerCase() === address.toLowerCase()
-    ) {
-      try {
-        const network = await this.browserProvider.getNetwork();
-        if (network.chainId === 31337n) {
-          const mmSigner = await this.browserProvider.getSigner();
-          return { signer: mmSigner, source: 'metamask_rpc' };
-        }
-      } catch {
-        // Fallback to direct Hardhat RPC wallet signer
-      }
-    }
-
-    return {
-      signer: new ethers.Wallet(privateKey, this.jsonRpcProvider),
-      source: 'hardhat_rpc',
-    };
   }
 
   /**
@@ -374,7 +394,8 @@ class Web3Service {
   }
 
   /**
-   * Deploys a new FreelanceMilestoneEscrow contract via EscrowFactory on the live Hardhat node
+   * Deploys a new FreelanceMilestoneEscrow contract via EscrowFactory on the live Hardhat node.
+   * Explicitly manages the sender's pending nonce to prevent "nonce has already been used" errors.
    */
   public async executeCreateAgreementOnChain(params: {
     senderAddress: string;
@@ -387,30 +408,90 @@ class Web3Service {
     milestoneAmountsWei: bigint[];
     milestoneDeadlines: bigint[];
   }): Promise<OnChainTxResult & { deployedEscrowAddress: string }> {
-    const { signer, source } = await this.getSignerForAccount(
-      params.senderAddress,
-      params.senderPrivateKey
-    );
+    const isOnline = await this.checkLocalNode();
+    if (!isOnline) {
+      throw new Error(
+        'Hardhat RPC Server (http://127.0.0.1:8545) is CLOSED / OFFLINE. Cannot execute transaction while disconnected from the Hardhat server.'
+      );
+    }
 
-    const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, signer);
-    const txResponse: ethers.ContractTransactionResponse = await factoryContract.createAgreement(
-      params.freelancer,
-      params.arbitrator,
-      params.title,
-      params.milestoneTitles,
-      params.milestoneAmountsWei,
-      params.milestoneDeadlines
-    );
+    const freshProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
+      staticNetwork: false,
+      batchMaxCount: 1,
+      cacheTimeout: -1,
+    });
+
+    const sendWithDirectRpcWallet = async (): Promise<{
+      txResponse: ethers.ContractTransactionResponse;
+      source: 'hardhat_rpc' | 'metamask_rpc';
+    }> => {
+      const wallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
+      const freshNonce = await this.getFreshNonce(params.senderAddress);
+      const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, wallet);
+      const txResponse = await factoryContract.createAgreement(
+        params.freelancer,
+        params.arbitrator,
+        params.title,
+        params.milestoneTitles,
+        params.milestoneAmountsWei,
+        params.milestoneDeadlines,
+        { nonce: freshNonce }
+      );
+      return { txResponse, source: 'hardhat_rpc' };
+    };
+
+    let txResponse: ethers.ContractTransactionResponse;
+    let source: 'hardhat_rpc' | 'metamask_rpc' = 'hardhat_rpc';
+
+    // If MetaMask is connected to the caller address, try MetaMask first; if MetaMask has a stale nonce cache, recover automatically with fresh RPC nonce
+    if (
+      this.status.metaMaskConnected &&
+      this.browserProvider &&
+      this.status.metaMaskAddress?.toLowerCase() === params.senderAddress.toLowerCase()
+    ) {
+      try {
+        const mmSigner = await this.browserProvider.getSigner();
+        const freshNonce = await this.getFreshNonce(params.senderAddress);
+        const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, mmSigner);
+        txResponse = await factoryContract.createAgreement(
+          params.freelancer,
+          params.arbitrator,
+          params.title,
+          params.milestoneTitles,
+          params.milestoneAmountsWei,
+          params.milestoneDeadlines,
+          { nonce: freshNonce }
+        );
+        source = 'metamask_rpc';
+      } catch (mmErr: any) {
+        const msg = (mmErr?.message || '').toLowerCase();
+        if (
+          msg.includes('nonce') ||
+          msg.includes('already been used') ||
+          mmErr?.code === 'NONCE_EXPIRED' ||
+          mmErr?.info?.error?.code === -32000
+        ) {
+          const fallback = await sendWithDirectRpcWallet();
+          txResponse = fallback.txResponse;
+          source = fallback.source;
+        } else {
+          throw mmErr;
+        }
+      }
+    } else {
+      const direct = await sendWithDirectRpcWallet();
+      txResponse = direct.txResponse;
+      source = direct.source;
+    }
 
     const receipt = await txResponse.wait();
     if (!receipt) {
       throw new Error('Transaction was not mined by the Hardhat server');
     }
 
-    const block = await this.jsonRpcProvider!.getBlock(receipt.blockNumber);
+    const block = await freshProvider.getBlock(receipt.blockNumber);
     const events = this.decodeReceiptLogs(receipt.logs);
 
-    // Extract the real deployed escrow address from the AgreementCreated event
     let deployedEscrowAddress = '';
     for (const log of receipt.logs) {
       const parsed = this.factoryInterface.parseLog({
@@ -424,7 +505,8 @@ class Web3Service {
     }
 
     if (!deployedEscrowAddress) {
-      const allEscrows: string[] = await factoryContract.getAllEscrows();
+      const readerContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, freshProvider);
+      const allEscrows: string[] = await readerContract.getAllEscrows();
       deployedEscrowAddress = ethers.getAddress(allEscrows[allEscrows.length - 1]);
     }
 
@@ -451,7 +533,8 @@ class Web3Service {
   }
 
   /**
-   * Executes a state-changing method on a deployed FreelanceMilestoneEscrow contract on the live Hardhat node
+   * Executes a state-changing method on a deployed FreelanceMilestoneEscrow contract on the live Hardhat node.
+   * Explicitly queries and passes the fresh pending nonce so nonce collisions never occur.
    */
   public async executeEscrowMethodOnChain(params: {
     senderAddress: string;
@@ -468,10 +551,12 @@ class Web3Service {
     args: any[];
     valueWei?: bigint;
   }): Promise<OnChainTxResult> {
-    const { signer, source } = await this.getSignerForAccount(
-      params.senderAddress,
-      params.senderPrivateKey
-    );
+    const isOnline = await this.checkLocalNode();
+    if (!isOnline) {
+      throw new Error(
+        'Hardhat RPC Server (http://127.0.0.1:8545) is CLOSED / OFFLINE. Cannot execute transaction while disconnected from the Hardhat server.'
+      );
+    }
 
     const codeExists = await this.hasContractCode(params.contractAddress);
     if (!codeExists) {
@@ -480,19 +565,72 @@ class Web3Service {
       );
     }
 
-    const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, signer);
-    const overrides = params.valueWei && params.valueWei > 0n ? { value: params.valueWei } : {};
+    const freshProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
+      staticNetwork: false,
+      batchMaxCount: 1,
+      cacheTimeout: -1,
+    });
 
-    const txResponse: ethers.ContractTransactionResponse = await escrowContract[
-      params.methodName
-    ](...params.args, overrides);
+    const sendWithDirectRpcWallet = async (): Promise<{
+      txResponse: ethers.ContractTransactionResponse;
+      source: 'hardhat_rpc' | 'metamask_rpc';
+    }> => {
+      const wallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
+      const freshNonce = await this.getFreshNonce(params.senderAddress);
+      const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, wallet);
+      const overrides: Record<string, any> = { nonce: freshNonce };
+      if (params.valueWei && params.valueWei > 0n) {
+        overrides.value = params.valueWei;
+      }
+      const txResponse = await escrowContract[params.methodName](...params.args, overrides);
+      return { txResponse, source: 'hardhat_rpc' };
+    };
+
+    let txResponse: ethers.ContractTransactionResponse;
+    let source: 'hardhat_rpc' | 'metamask_rpc' = 'hardhat_rpc';
+
+    if (
+      this.status.metaMaskConnected &&
+      this.browserProvider &&
+      this.status.metaMaskAddress?.toLowerCase() === params.senderAddress.toLowerCase()
+    ) {
+      try {
+        const mmSigner = await this.browserProvider.getSigner();
+        const freshNonce = await this.getFreshNonce(params.senderAddress);
+        const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, mmSigner);
+        const overrides: Record<string, any> = { nonce: freshNonce };
+        if (params.valueWei && params.valueWei > 0n) {
+          overrides.value = params.valueWei;
+        }
+        txResponse = await escrowContract[params.methodName](...params.args, overrides);
+        source = 'metamask_rpc';
+      } catch (mmErr: any) {
+        const msg = (mmErr?.message || '').toLowerCase();
+        if (
+          msg.includes('nonce') ||
+          msg.includes('already been used') ||
+          mmErr?.code === 'NONCE_EXPIRED' ||
+          mmErr?.info?.error?.code === -32000
+        ) {
+          const fallback = await sendWithDirectRpcWallet();
+          txResponse = fallback.txResponse;
+          source = fallback.source;
+        } else {
+          throw mmErr;
+        }
+      }
+    } else {
+      const direct = await sendWithDirectRpcWallet();
+      txResponse = direct.txResponse;
+      source = direct.source;
+    }
 
     const receipt = await txResponse.wait();
     if (!receipt) {
       throw new Error('Transaction was not mined by the Hardhat server');
     }
 
-    const block = await this.jsonRpcProvider!.getBlock(receipt.blockNumber);
+    const block = await freshProvider.getBlock(receipt.blockNumber);
     const events = this.decodeReceiptLogs(receipt.logs);
 
     await this.checkLocalNode();
@@ -521,7 +659,7 @@ class Web3Service {
    */
   public async verifyTransactionOnChain(txHash: string): Promise<LiveReceiptVerification> {
     const isOnline = await this.checkLocalNode();
-    if (!isOnline || !this.jsonRpcProvider) {
+    if (!isOnline) {
       return {
         verified: false,
         checkedAt: Date.now(),
@@ -532,10 +670,16 @@ class Web3Service {
     }
 
     try {
+      const freshProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
+        staticNetwork: false,
+        batchMaxCount: 1,
+        cacheTimeout: -1,
+      });
+
       const [receipt, tx, currentBlock] = await Promise.all([
-        this.jsonRpcProvider.getTransactionReceipt(txHash),
-        this.jsonRpcProvider.getTransaction(txHash),
-        this.jsonRpcProvider.getBlockNumber(),
+        freshProvider.getTransactionReceipt(txHash),
+        freshProvider.getTransaction(txHash),
+        freshProvider.getBlockNumber(),
       ]);
 
       if (!receipt || !tx) {
