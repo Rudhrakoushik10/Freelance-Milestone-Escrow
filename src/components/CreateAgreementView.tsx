@@ -57,20 +57,20 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
   if (activeAccount.role !== 'client') {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6 animate-in fade-in duration-200">
-        <div className="p-8 rounded-2xl bg-white border border-[#111312]/15 shadow-lg space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#991B1B]/10 border border-[#991B1B]/30 text-[#991B1B] flex items-center justify-center mx-auto">
+        <div className="p-8 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-rose-950/70 border border-rose-500/40 text-rose-400 flex items-center justify-center mx-auto">
             <AlertCircle className="w-7 h-7" />
           </div>
-          <h2 className="font-display text-xl font-bold text-[#111312]">
+          <h2 className="font-display text-xl font-bold text-white">
             Client Role Required to Create Projects
           </h2>
-          <p className="text-sm text-[#111312]/70 max-w-lg mx-auto leading-relaxed">
-            Under the decentralized single-role architecture, each account is strictly assigned to one role. Your current account (<strong>{activeAccount.name}</strong>) is registered as a <strong>{activeAccount.roleLabel}</strong>. Only dedicated Client accounts can commission and fund escrow agreements.
+          <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+            Under the decentralized single-role architecture, each account is strictly assigned to one role. Your current account (<strong className="text-white">{activeAccount.name}</strong>) is registered as a <strong className="text-emerald-400">{activeAccount.roleLabel}</strong>. Only dedicated Client accounts can commission and fund escrow agreements.
           </p>
           <div className="pt-2 flex items-center justify-center">
             <button
               onClick={() => evm.setActiveAccount('account-0')}
-              className="px-5 py-2.5 rounded-xl bg-[#111312] hover:bg-[#222624] text-white font-display font-bold text-xs shadow-md transition-all cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs shadow-md transition-all cursor-pointer"
             >
               Switch to Client Account (Alex)
             </button>
@@ -184,17 +184,17 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Page Title */}
-      <div className="p-6 rounded-2xl bg-[#111312] text-white border border-[#111312] shadow-lg flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-[#14532D] p-2 shrink-0 flex items-center justify-center border border-white/15">
+      <div className="p-6 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-xl flex items-start gap-4">
+        <div className="w-12 h-12 rounded-xl bg-emerald-950/80 p-2 shrink-0 flex items-center justify-center border border-emerald-500/35">
           <img src="/logo.png" alt="Platform Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <h2 className="font-display text-xl font-extrabold text-white tracking-tight">
             Create New Milestone Escrow Agreement
           </h2>
-          <p className="text-xs text-white/75 mt-1">
+          <p className="text-xs text-slate-300 mt-1">
             Deploys a dedicated milestone agreement contract. Your active account (
-            <strong className="text-white font-mono">
+            <strong className="text-emerald-400 font-mono">
               {activeAccount.address.substring(0, 10)}...
             </strong>
             ) will be the recorded Client.
@@ -203,21 +203,21 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-white border-2 border-[#991B1B] text-[#991B1B] text-xs flex items-center gap-2 shadow-xs">
-          <AlertCircle className="w-4 h-4 text-[#991B1B] shrink-0" />
+        <div className="p-4 rounded-xl bg-rose-950/85 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2 shadow-lg">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
           <span className="font-semibold">{errorMsg}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Core Agreement Fields */}
-        <div className="p-6 rounded-2xl bg-white border border-[#111312]/12 shadow-xs space-y-4">
-          <h3 className="font-display text-sm font-bold text-[#111312]">
+        <div className="p-6 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-4">
+          <h3 className="font-display text-sm font-bold text-white">
             01. Project Details & Counterparty Signers
           </h3>
 
           <div>
-            <label className="text-xs text-[#111312] font-semibold block mb-1">
+            <label className="text-xs text-slate-200 font-semibold block mb-1">
               Project / Agreement Title
             </label>
             <input
@@ -225,7 +225,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Website Redesign & Smart Contract Engineering"
-              className="w-full rounded-xl bg-[#F7F8F7] border border-[#111312]/20 p-3 text-xs text-[#111312] placeholder:text-[#111312]/40 focus:bg-white focus:outline-none focus:border-[#14532D]"
+              className="w-full rounded-xl bg-slate-950 border border-white/15 p-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
               required
             />
           </div>
@@ -234,13 +234,13 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
             {/* Freelancer Address */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-[#111312] font-semibold">
+                <label className="text-xs text-slate-200 font-semibold">
                   Freelancer Wallet Address
                 </label>
                 <button
                   type="button"
                   onClick={() => setFreelancerAddress(HARDHAT_ACCOUNTS[1].address)}
-                  className="text-[11px] text-[#14532D] hover:underline font-bold cursor-pointer"
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline font-bold cursor-pointer"
                 >
                   Select Stark (Freelancer)
                 </button>
@@ -249,7 +249,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                 type="text"
                 value={freelancerAddress}
                 onChange={(e) => setFreelancerAddress(e.target.value)}
-                className="w-full rounded-xl bg-[#F7F8F7] border border-[#111312]/20 p-3 text-xs text-[#111312] font-mono focus:bg-white focus:outline-none focus:border-[#14532D]"
+                className="w-full rounded-xl bg-slate-950 border border-white/15 p-3 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                 required
               />
             </div>
@@ -257,13 +257,13 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
             {/* Arbitrator Address */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-[#111312] font-semibold">
+                <label className="text-xs text-slate-200 font-semibold">
                   Designated Arbitrator Wallet Address
                 </label>
                 <button
                   type="button"
                   onClick={() => setArbitratorAddress(HARDHAT_ACCOUNTS[2].address)}
-                  className="text-[11px] text-[#991B1B] hover:underline font-bold cursor-pointer"
+                  className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline font-bold cursor-pointer"
                 >
                   Select Mark (Arbitrator)
                 </button>
@@ -272,7 +272,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                 type="text"
                 value={arbitratorAddress}
                 onChange={(e) => setArbitratorAddress(e.target.value)}
-                className="w-full rounded-xl bg-[#F7F8F7] border border-[#111312]/20 p-3 text-xs text-[#111312] font-mono focus:bg-white focus:outline-none focus:border-[#14532D]"
+                className="w-full rounded-xl bg-slate-950 border border-white/15 p-3 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                 required
               />
             </div>
@@ -280,29 +280,29 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
         </div>
 
         {/* Dynamic Milestones Section */}
-        <div className="p-6 rounded-2xl bg-white border border-[#111312]/12 shadow-xs space-y-4">
+        <div className="p-6 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display text-sm font-bold text-[#111312]">
+                <h3 className="font-display text-sm font-bold text-white">
                   02. Milestones & Payment Schedule
                 </h3>
                 {successInfo && (
-                  <span className="text-[11px] font-bold text-[#14532D]">
+                  <span className="text-[11px] font-bold text-emerald-400">
                     · {successInfo}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[#111312]/60">
+              <p className="text-xs text-slate-400">
                 Define deliverables with individual funding allocations and deadlines ({milestones.length}/10 max)
               </p>
             </div>
             <button
               type="button"
               onClick={handleAddMilestone}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111312] hover:bg-[#222624] text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-white/15 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 text-emerald-400" />
               Add Milestone
             </button>
           </div>
@@ -311,14 +311,14 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
             {milestones.map((m, idx) => (
               <div
                 key={m.id}
-                className="p-4 rounded-xl bg-[#F7F8F7] border border-[#111312]/12 space-y-3 transition-all hover:border-[#111312]/30"
+                className="p-4 rounded-xl bg-slate-950/80 border border-white/10 space-y-3 transition-all hover:border-emerald-500/35"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded bg-[#14532D] text-white font-mono text-[10px] font-bold flex items-center justify-center">
+                    <span className="w-5 h-5 rounded bg-emerald-600 text-white font-mono text-[10px] font-bold flex items-center justify-center">
                       {idx + 1}
                     </span>
-                    <span className="text-xs font-mono font-bold text-[#111312]">
+                    <span className="text-xs font-mono font-bold text-white">
                       Milestone #{idx + 1}
                     </span>
                   </div>
@@ -326,7 +326,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleRemoveMilestone(m.id, e)}
-                      className="text-[#111312]/40 hover:text-[#991B1B] transition-colors p-1 cursor-pointer"
+                      className="text-slate-400 hover:text-rose-400 transition-colors p-1 cursor-pointer"
                       title="Remove milestone"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -336,20 +336,20 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-6">
-                    <label className="text-[11px] text-[#111312]/70 font-semibold block mb-1">
+                    <label className="text-[11px] text-slate-300 font-semibold block mb-1">
                       Deliverable Description
                     </label>
                     <input
                       type="text"
                       value={m.title}
                       onChange={(e) => handleUpdateMilestone(m.id, 'title', e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#111312]/20 p-2 text-xs text-[#111312] focus:outline-none focus:border-[#14532D]"
+                      className="w-full rounded-lg bg-slate-900 border border-white/15 p-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                       required
                     />
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className="text-[11px] text-[#111312]/70 font-semibold block mb-1">
+                    <label className="text-[11px] text-slate-300 font-semibold block mb-1">
                       Amount (ETH)
                     </label>
                     <input
@@ -358,13 +358,13 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                       min="0.01"
                       value={m.amount}
                       onChange={(e) => handleUpdateMilestone(m.id, 'amount', e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#111312]/20 p-2 text-xs text-[#111312] font-mono focus:outline-none focus:border-[#14532D]"
+                      className="w-full rounded-lg bg-slate-900 border border-white/15 p-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                       required
                     />
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className="text-[11px] text-[#111312]/70 font-semibold block mb-1">
+                    <label className="text-[11px] text-slate-300 font-semibold block mb-1">
                       Deadline (Days from now)
                     </label>
                     <input
@@ -374,7 +374,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
                       onChange={(e) =>
                         handleUpdateMilestone(m.id, 'deadlineDays', parseInt(e.target.value) || 1)
                       }
-                      className="w-full rounded-lg bg-white border border-[#111312]/20 p-2 text-xs text-[#111312] font-mono focus:outline-none focus:border-[#14532D]"
+                      className="w-full rounded-lg bg-slate-900 border border-white/15 p-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                       required
                     />
                   </div>
@@ -387,7 +387,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
               <button
                 type="button"
                 onClick={handleAddMilestone}
-                className="w-full py-2.5 px-3 rounded-xl border border-dashed border-[#14532D] hover:bg-[#14532D]/[0.06] text-[#14532D] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 hover:bg-emerald-950/30 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Another Milestone ({milestones.length}/10)</span>
@@ -396,9 +396,9 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
           </div>
 
           {/* Sum Total Breakdown */}
-          <div className="p-4 rounded-xl bg-[#111312] text-white flex items-center justify-between text-xs">
-            <span className="text-white/80 font-semibold">Total Escrow Value Required:</span>
-            <span className="text-lg font-bold font-mono text-white tabular-nums">
+          <div className="p-4 rounded-xl bg-slate-950 border border-emerald-500/30 text-white flex items-center justify-between text-xs">
+            <span className="text-slate-300 font-semibold">Total Escrow Value Required:</span>
+            <span className="text-lg font-bold font-mono text-emerald-400 tabular-nums">
               {totalEth.toFixed(2)} ETH
             </span>
           </div>
@@ -409,7 +409,7 @@ export const CreateAgreementView: React.FC<CreateAgreementViewProps> = ({
           <button
             type="submit"
             disabled={deploying}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#14532D] hover:bg-[#166534] text-white font-display font-bold text-xs transition-colors shadow-md disabled:opacity-50 cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs transition-colors shadow-lg shadow-emerald-950/60 disabled:opacity-50 cursor-pointer whitespace-nowrap"
           >
             <span>{deploying ? 'Deploying Escrow Agreement...' : 'Deploy Escrow Agreement'}</span>
             <ArrowRight className="w-4 h-4" />

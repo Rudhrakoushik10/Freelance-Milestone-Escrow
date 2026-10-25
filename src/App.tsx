@@ -57,6 +57,13 @@ export default function App() {
     };
   }, []);
 
+  // Reset scroll position to the top whenever navigating between pages, tabs, or agreements
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [currentTab, selectedAgreementAddr, isLoggedIn]);
+
   const handleRetryRpc = async () => {
     setRetryingRpc(true);
     await web3Service.checkLocalNode();

@@ -4,18 +4,13 @@ import { evm } from '../services/evmEngine';
 import {
   Bell,
   Coins,
-  CheckCircle2,
   ShieldAlert,
   Upload,
-  Scale,
-  RotateCcw,
-  Sparkles,
   Check,
   Trash2,
   ExternalLink,
   Filter,
   CheckCheck,
-  ArrowDownLeft,
 } from 'lucide-react';
 
 interface NotificationCenterProps {
@@ -58,14 +53,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       case 'funded':
       case 'completed':
       case 'withdrawn':
-        return <Coins className="w-4 h-4 text-[#14532D]" />;
+        return <Coins className="w-4 h-4 text-emerald-400" />;
       case 'disputed':
       case 'resolved':
-        return <ShieldAlert className="w-4 h-4 text-[#991B1B]" />;
+        return <ShieldAlert className="w-4 h-4 text-rose-400" />;
       case 'submitted':
       case 'refunded':
       default:
-        return <Upload className="w-4 h-4 text-[#111312]" />;
+        return <Upload className="w-4 h-4 text-blue-400" />;
     }
   };
 
@@ -74,38 +69,38 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       case 'funded':
       case 'completed':
       case 'withdrawn':
-        return 'bg-[#14532D]/10 text-[#14532D] border-[#14532D]/25';
+        return 'bg-emerald-950/80 text-emerald-400 border-emerald-500/35';
       case 'disputed':
       case 'resolved':
-        return 'bg-[#991B1B]/10 text-[#991B1B] border-[#991B1B]/25';
+        return 'bg-rose-950/80 text-rose-400 border-rose-500/35';
       default:
-        return 'bg-[#111312]/5 text-[#111312] border-[#111312]/15';
+        return 'bg-slate-800 text-blue-400 border-white/15';
     }
   };
 
   return (
-    <div className="rounded-3xl bg-white border border-[#111312]/12 shadow-sm overflow-hidden transition-all">
+    <div className="rounded-3xl bg-slate-900/90 border border-white/10 shadow-xl overflow-hidden transition-all">
       {/* Header bar */}
-      <div className="px-6 py-4 border-b border-[#111312]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-6 py-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#111312] text-white flex items-center justify-center relative shrink-0 shadow-xs">
-            <Bell className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-white/15 text-white flex items-center justify-center relative shrink-0 shadow-xs">
+            <Bell className="w-5 h-5 text-lime-300" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-[9px] font-bold text-white ring-2 ring-white">
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white ring-2 ring-slate-900">
                 {unreadCount}
               </span>
             )}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-extrabold text-[#111312] font-display">
+              <h3 className="text-base font-extrabold text-white font-display">
                 Real-Time Escrow Activity Alerts
               </h3>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-[#14532D] text-white font-bold uppercase tracking-wider">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/90 text-lime-300 border border-emerald-500/30 font-bold uppercase tracking-wider">
                 Live Signal
               </span>
             </div>
-            <p className="text-xs text-[#111312]/60">
+            <p className="text-xs text-slate-400">
               Immediate event notifications when milestones are funded, completed, or disputed
             </p>
           </div>
@@ -116,7 +111,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           {unreadCount > 0 && (
             <button
               onClick={() => evm.markAllAsRead(activeAccount.address)}
-              className="px-3 py-1.5 rounded-xl bg-[#14532D]/10 hover:bg-[#14532D]/15 text-[#14532D] text-xs font-bold transition-colors flex items-center gap-1.5 border border-[#14532D]/25 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900/80 text-emerald-300 text-xs font-bold transition-colors flex items-center gap-1.5 border border-emerald-500/35 cursor-pointer"
             >
               <CheckCheck className="w-3.5 h-3.5" />
               <span>Mark All Read</span>
@@ -126,17 +121,17 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       </div>
 
       {/* Filter Bar */}
-      <div className="px-6 py-3 bg-[#F7F8F7] border-b border-[#111312]/10 flex items-center justify-between gap-4 overflow-x-auto text-xs">
+      <div className="px-6 py-3 bg-slate-950/70 border-b border-white/10 flex items-center justify-between gap-4 overflow-x-auto text-xs">
         <div className="flex items-center gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-[#111312]/50 shrink-0" />
-          <span className="text-[#111312]/60 font-semibold shrink-0">Filter Alerts:</span>
+          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="text-slate-400 font-semibold shrink-0">Filter Alerts:</span>
 
           <button
             onClick={() => setFilter('all')}
             className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
               filter === 'all'
-                ? 'bg-[#111312] text-white'
-                : 'text-[#111312]/70 hover:text-[#111312] hover:bg-white'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             All ({accountNotifs.length})
@@ -146,13 +141,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             onClick={() => setFilter('unread')}
             className={`px-2.5 py-1 rounded-lg font-bold transition-colors flex items-center gap-1 cursor-pointer ${
               filter === 'unread'
-                ? 'bg-[#111312] text-white'
-                : 'text-[#111312]/70 hover:text-[#111312] hover:bg-white'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             <span>Unread</span>
             {unreadCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded bg-[#991B1B] text-white font-bold text-[10px]">
+              <span className="px-1.5 py-0.2 rounded bg-rose-600 text-white font-bold text-[10px]">
                 {unreadCount}
               </span>
             )}
@@ -162,8 +157,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             onClick={() => setFilter('funded')}
             className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
               filter === 'funded'
-                ? 'bg-[#14532D] text-white'
-                : 'text-[#111312]/70 hover:text-[#111312] hover:bg-white'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             Funded
@@ -173,8 +168,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             onClick={() => setFilter('completed')}
             className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
               filter === 'completed'
-                ? 'bg-[#14532D] text-white'
-                : 'text-[#111312]/70 hover:text-[#111312] hover:bg-white'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             Completed
@@ -184,26 +179,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             onClick={() => setFilter('disputed')}
             className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
               filter === 'disputed'
-                ? 'bg-[#991B1B] text-white'
-                : 'text-[#111312]/70 hover:text-[#111312] hover:bg-white'
+                ? 'bg-rose-600 text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
             Disputed
           </button>
         </div>
 
-        <span className="text-[11px] text-[#111312]/50 font-mono shrink-0 hidden md:inline">
+        <span className="text-[11px] text-slate-400 font-mono shrink-0 hidden md:inline">
           Auto-synced with EVM state
         </span>
       </div>
 
       {/* Notifications List */}
-      <div className="divide-y divide-[#111312]/10 max-h-96 overflow-y-auto">
+      <div className="divide-y divide-white/10 max-h-96 overflow-y-auto">
         {filteredNotifs.length === 0 ? (
-          <div className="p-8 text-center text-[#111312]/60 text-xs space-y-2">
-            <Bell className="w-6 h-6 text-[#111312]/30 mx-auto" />
-            <p className="font-bold text-[#111312]">No alert notifications found</p>
-            <p className="text-[11px] text-[#111312]/50">
+          <div className="p-8 text-center text-slate-400 text-xs space-y-2">
+            <Bell className="w-6 h-6 text-slate-500 mx-auto" />
+            <p className="font-bold text-slate-200">No alert notifications found</p>
+            <p className="text-[11px] text-slate-400">
               {filter === 'unread'
                 ? 'You have read all your real-time alerts.'
                 : 'Notifications will appear here when contract milestones are funded, completed, or disputed.'}
@@ -214,7 +209,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <div
               key={n.id}
               className={`p-4 sm:px-6 transition-all flex items-start justify-between gap-4 ${
-                !n.read ? 'bg-[#14532D]/5 hover:bg-[#14532D]/10' : 'hover:bg-[#F7F8F7]'
+                !n.read ? 'bg-emerald-950/25 hover:bg-emerald-950/40' : 'hover:bg-slate-800/50'
               }`}
             >
               <div className="flex items-start gap-3.5 min-w-0 flex-1">
@@ -225,28 +220,28 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
                 <div className="space-y-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-[#111312] font-display">{n.title}</span>
+                    <span className="text-xs font-bold text-white font-display">{n.title}</span>
                     {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-[#14532D] shrink-0" title="Unread Alert" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Unread Alert" />
                     )}
-                    <span className="text-[11px] text-[#111312]/50 font-mono">
+                    <span className="text-[11px] text-slate-400 font-mono">
                       · {formatRelativeTime(n.timestamp)}
                     </span>
                   </div>
 
-                  <p className="text-xs text-[#111312]/75 leading-relaxed break-words">
+                  <p className="text-xs text-slate-300 leading-relaxed break-words">
                     {n.message}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-[#111312]/60">
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-slate-400">
                     {n.contractAddress && (
                       <span>
-                        Contract: <strong className="text-[#111312]">{n.contractAddress.substring(0, 8)}...{n.contractAddress.substring(36)}</strong>
+                        Contract: <strong className="text-slate-200">{n.contractAddress.substring(0, 8)}...{n.contractAddress.substring(36)}</strong>
                       </span>
                     )}
                     {n.amountEth && (
                       <span>
-                        Amount: <strong className="text-[#14532D] font-bold">{n.amountEth} ETH</strong>
+                        Amount: <strong className="text-emerald-400 font-bold">{n.amountEth} ETH</strong>
                       </span>
                     )}
                   </div>
@@ -263,7 +258,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         onSelectAgreement(n.contractAddress);
                       }
                     }}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#111312] hover:bg-[#222624] text-white text-xs font-bold transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-white/15 text-xs font-bold transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
                     title="Open details for this agreement"
                   >
                     <span>View</span>
@@ -274,7 +269,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 {!n.read ? (
                   <button
                     onClick={() => evm.markAllAsRead(activeAccount.address)}
-                    className="p-1.5 rounded-lg hover:bg-[#111312]/10 text-[#111312]/50 hover:text-[#111312] transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
                     title="Mark as Read"
                   >
                     <Check className="w-4 h-4" />
@@ -282,7 +277,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 ) : (
                   <button
                     onClick={() => evm.deleteNotification(n.id)}
-                    className="p-1.5 rounded-lg hover:bg-[#991B1B]/10 text-[#111312]/40 hover:text-[#991B1B] transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                     title="Delete Notification"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
