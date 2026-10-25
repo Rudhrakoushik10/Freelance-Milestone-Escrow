@@ -10,6 +10,6 @@ public/assets/aistudio/
 .DS_Store
 *.log
 .env*
-!.env.example
+
 
 
