@@ -8,13 +8,13 @@ The **Freelance Milestone Escrow** protocol enforces strict cryptographic access
   - Authorized to deploy agreements via `EscrowFactory`, deposit 100% upfront ETH via `fundAgreement()`, approve submitted deliverables via `approveMilestone()`, raise disputes on submitted phases, and claim refunds on unstarted `Pending` milestones via `refundMilestone()`.
   - Cannot unilaterally claw back funds once a milestone has been `Submitted`, `Disputed`, `Released`, or `Resolved`.
 - **Freelancer (`Stark` — `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`)**:
-  - Authorized to submit deliverable proofs before milestone deadlines via `submitMilestone()`, raise disputes on submitted milestones, and pull earned funds via `withdraw()`.
-  - Cannot approve own milestones or withdraw more than `withdrawable[freelancer]`.
+  - Authorized to submit deliverable proofs before milestone deadlines via `submitMilestone()` and pull earned funds via `withdraw()`.
+  - Cannot approve or dispute milestones or withdraw more than `withdrawable[freelancer]`.
 - **Arbitrator (`Mark` — `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`)**:
   - Authorized exclusively to settle milestones in the `Disputed` state via `resolveDispute(index, freelancerShareBps)`.
   - Cannot divert funds to the arbitrator address, cannot touch non-disputed milestones, and cannot initiate withdrawals.
 - **External / Unauthorized Callers**:
-  - Any address not matching the immutable role addresses is immediately rejected by `onlyClient`, `onlyFreelancer`, `onlyArbitrator`, or `onlyClientOrFreelancer`.
+  - Any address not matching the immutable role addresses is immediately rejected by `onlyClient`, `onlyFreelancer`, or `onlyArbitrator`.
 
 ---
 

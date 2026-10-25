@@ -1,10 +1,10 @@
-# 🚀 Local Demonstration & Architecture Guide
+# Local Demonstration & Architecture Guide
 
-This guide provides step-by-step instructions to run and demonstrate the **Freelance Milestone Escrow** project locally using **Solidity ^0.8.24**, **OpenZeppelin Contracts v5** (`ReentrancyGuard`), **Hardhat & Hardhat Ignition**, **ethers.js v6**, **MetaMask**, and **React 19 + TypeScript + Vite + Tailwind CSS**.
+This guide provides step-by-step instructions to set up, test, and demonstrate the **Freelance Milestone Escrow** project locally using **Solidity ^0.8.24**, **OpenZeppelin Contracts v5** (`ReentrancyGuard`), **Hardhat & Hardhat Ignition**, **ethers.js v6**, **MetaMask**, and **React 19 + TypeScript + Vite + Tailwind CSS**.
 
 ---
 
-## 🛠️ System Architecture Overview
+## 1. System Architecture Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -31,7 +31,7 @@ This guide provides step-by-step instructions to run and demonstrate the **Freel
 
 ---
 
-## 📋 Step-by-Step Execution Instructions
+## 2. Step-by-Step Local Setup Instructions
 
 ### Step 1: Install Dependencies
 Open your terminal in the project root directory and run:
@@ -39,62 +39,50 @@ Open your terminal in the project root directory and run:
 npm install
 ```
 
----
+### Step 2: Run the Smart Contract Unit Test Suite
+Verify that all 5 test suites (`FreelanceMilestoneEscrow.test.cjs`, `EscrowFactory.test.cjs`, `AccessControl.test.cjs`, `AccountingInvariant.test.cjs`, `DisputesAndRefunds.test.cjs`) pass:
+```bash
+npx hardhat test
+```
 
-### Step 2: Start the Local Hardhat Ethereum Blockchain
+### Step 3: Start the Local Hardhat Ethereum Blockchain (Terminal 1)
 In **Terminal 1**, start the local Hardhat network listening on `http://127.0.0.1:8545`:
 ```bash
 npx hardhat node
 ```
 > **Note:** Keep this terminal running during your demo. Whenever you execute actions in the frontend (`createAgreement`, `fundAgreement`, `submitMilestone`, `approveMilestone`, `raiseDispute`, `resolveDispute`, `withdraw`), `ethers.js v6` broadcasts transactions directly to `http://127.0.0.1:8545` so you can see real-time transaction hashes, block numbers, and gas metrics logged in this terminal.
 
----
-
-### Step 3: Compile Smart Contracts & Deploy via Hardhat Ignition
-In **Terminal 2**, deploy the contracts using **Hardhat Ignition**:
-
+### Step 4: Deploy Smart Contracts via Hardhat Ignition (Terminal 2)
+In **Terminal 2**, deploy the contracts to the running Hardhat node:
 ```bash
 npx hardhat ignition deploy ignition/modules/FreelanceMilestoneEscrow.cjs --network localhost
 ```
-
 *(Alternative)* Deploy using the standard Hardhat script:
 ```bash
 npx hardhat run scripts/deploy.cjs --network localhost
 ```
 
----
-
-### Step 4: Run the Smart Contract Unit Test Suite
-Verify that all 5 test suites (`FreelanceMilestoneEscrow.test.cjs`, `EscrowFactory.test.cjs`, `AccessControl.test.cjs`, `AccountingInvariant.test.cjs`, `DisputesAndRefunds.test.cjs`) pass with 100% assertions:
-```bash
-npx hardhat test
-```
-
----
-
-### Step 5: Start the Frontend Application
+### Step 5: Start the Frontend Application (Terminal 2)
 In **Terminal 2**, start the React + Vite development server:
 ```bash
 npm run dev
 ```
 Open your browser at `http://localhost:3000`.
 
----
-
-### Step 6: Connect MetaMask (Optional for Live Browser Wallet Sync)
+### Step 6: Connect MetaMask & Import Demo Accounts
 1. In MetaMask, add or switch to the local Hardhat network (the app also auto-prompts this via `wallet_addEthereumChain` when you click **Connect MetaMask**):
    - **Network Name:** `Hardhat Localhost 8545`
    - **RPC URL:** `http://127.0.0.1:8545`
    - **Chain ID:** `31337` (`0x7a69`)
    - **Currency Symbol:** `ETH`
-2. Import any of the 3 dedicated role accounts below using its private key.
-3. In the React app, click **Connect Your Wallet** $\rightarrow$ **Connect MetaMask** (or select one of the 3 single-role accounts directly).
+2. Import the 3 dedicated role accounts below using their private keys.
+3. If you restart `npx hardhat node`, clear MetaMask's cached nonce history via **Settings $\rightarrow$ Advanced $\rightarrow$ Clear activity tab data**.
 
 ---
 
-## 🔑 Dedicated Single-Role Hardhat Accounts
+## 3. Dedicated Single-Role Hardhat Accounts
 
-The platform enforces a **Strict Single-Role Architecture** with 1 account per role and **zero mock agreements** on startup:
+The platform enforces a **Strict Single-Role Architecture** with 1 account per role:
 
 | Role | Account Name | Handle | Address | Private Key |
 | :--- | :--- | :--- | :--- | :--- |
@@ -104,10 +92,30 @@ The platform enforces a **Strict Single-Role Architecture** with 1 account per r
 
 ---
 
-## 🌟 Key Technical Highlights for Evaluators
+## 4. Live 5-Phase Demo Script
+
+1. **Phase 1 — Deploy & Fund (`Alex` — Client):**
+   - Connect as **Alex**, go to **Create Project**, deploy a 2-milestone project (`1.0 ETH` + `2.0 ETH`), and click **Fund 3.00 ETH Now**.
+   - Notice that while milestones are `Pending`, Alex sees the waiting badge **`Awaiting Freelancer (Stark) Submission`** and cannot submit work.
+2. **Phase 2 — Submit Deliverables (`Stark` — Freelancer):**
+   - Switch to **Stark**, submit work proofs on both Milestone 1 and Milestone 2 (`submitMilestone`).
+   - Once `Submitted`, Stark sees **`Awaiting Client (Alex) Review — Only Client can Approve or Dispute`**.
+3. **Phase 3 — Approve & Dispute (`Alex` — Client):**
+   - Switch back to **Alex**.
+   - Click **Approve & Release** on Milestone 1 (`1.0 ETH` credited to Stark).
+   - Click **Raise Dispute** on Milestone 2 (`2.0 ETH` escalated to Mark).
+4. **Phase 4 — Arbitrate Dispute (`Mark` — Arbitrator):**
+   - Switch to **Mark**, open **Active Disputes**, set a `6000 bps` (60% Freelancer / 40% Client) split on Milestone 2, and click **Execute Binding Resolution**.
+5. **Phase 5 — Pull-Over-Push Withdrawals (`Stark` & `Alex`):**
+   - Switch to **Stark** and click **Withdraw 2.2000 ETH** (`withdraw()`).
+   - Switch to **Alex** and click **Withdraw 0.8000 ETH** (`withdraw()`).
+
+---
+
+## 5. Key Technical Highlights for Evaluators
 
 1. **OpenZeppelin Security (`@openzeppelin/contracts`):** `FreelanceMilestoneEscrow.sol` inherits OpenZeppelin's `ReentrancyGuard` (`nonReentrant`) and follows the Checks-Effects-Interactions (CEI) pattern on all `withdraw()` calls.
-2. **ethers.js v6 Integration:** Uses `ethers.BrowserProvider`, `ethers.JsonRpcProvider`, `ethers.Wallet`, `ethers.Interface` ABI encoding, `ethers.parseEther` / `ethers.formatEther`, and `ethers.keccak256`.
-3. **Pull-Over-Push EVM Withdrawals:** Client approvals credit `withdrawable[freelancer]` without pushing external ETH transfers during approval, preventing reentrancy and DoS attacks.
-4. **Basis-Point Dispute Resolution:** Neutral dispute settlement via a `0–10,000 bps` slider with exact integer subtraction (`clientRefund = amount - freelancerShare`) guaranteeing zero wei remainder leakage.
+2. **Strict Role Modifiers:** `submitMilestone` is restricted to `onlyFreelancer` (`Stark`), `approveMilestone` and `raiseDispute` are restricted to `onlyClient` (`Alex`), and `resolveDispute` is restricted to `onlyArbitrator` (`Mark`).
+3. **Real-Time Hardhat RPC Heartbeat:** Continuously monitors `http://127.0.0.1:8545` every 3 seconds and immediately warns the user if the local Hardhat node goes offline.
+4. **Pull-Over-Push EVM Withdrawals:** Client approvals credit `withdrawable[freelancer]` without pushing external ETH transfers during approval, preventing reentrancy and DoS attacks.
 5. **Formal Solvency Invariant:** Real-time verification that `address(this).balance == totalReserved + sum(withdrawable)` at every state transition.

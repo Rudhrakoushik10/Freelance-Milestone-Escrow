@@ -10,8 +10,8 @@ The platform operates with **3 dedicated single-role accounts** mapped directly 
 
 | Account Name | Handle | Role | Wallet Address | Core Responsibilities |
 | :--- | :--- | :--- | :--- | :--- |
-| **Alex** | `@alex.eth` | **Client** | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | Deploy agreements, lock 100% escrow funding, review & approve deliverables, or refund unstarted milestones |
-| **Stark** | `@stark.eth` | **Freelancer** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | Deliver milestone work proofs prior to deadlines, raise disputes if needed, and withdraw released ETH |
+| **Alex** | `@alex.eth` | **Client** | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | Deploy agreements, lock 100% escrow funding, review & approve deliverables, raise disputes on submitted work, or refund unstarted milestones |
+| **Stark** | `@stark.eth` | **Freelancer** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | Deliver milestone work proofs prior to deadlines and withdraw released or arbitrated ETH |
 | **Mark** | `@mark.eth` | **Arbitrator** | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | Inspect contested milestones in the Resolution Center and execute binding basis-point split settlements |
 
 ---

@@ -2,7 +2,12 @@ node_modules/
 build/
 dist/
 coverage/
+cache/
+artifacts/
+ignition/deployments/
+.aistudio/
 .DS_Store
 *.log
 .env*
 !.env.example
+

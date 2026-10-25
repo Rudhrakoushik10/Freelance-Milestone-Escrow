@@ -57,7 +57,7 @@ The protocol enforces a **Single-Role Architecture** with three dedicated partic
 | Account | Role | Address | Permitted On-Chain Actions | Prohibited Actions |
 | :--- | :--- | :--- | :--- | :--- |
 | **Alex** (`@alex.eth`) | **Client** | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `createAgreement`, `fundAgreement`, `approveMilestone`, `raiseDispute`, `refundMilestone`, `withdraw` | Cannot submit deliverables, cannot resolve disputes |
-| **Stark** (`@stark.eth`) | **Freelancer** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `submitMilestone`, `raiseDispute`, `withdraw` | Cannot fund agreements, cannot approve own work, cannot resolve disputes |
+| **Stark** (`@stark.eth`) | **Freelancer** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `submitMilestone`, `withdraw` | Cannot fund agreements, cannot approve or dispute work, cannot resolve disputes |
 | **Mark** (`@mark.eth`) | **Arbitrator** | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | `resolveDispute` (0–10,000 bps split) | Cannot create/fund agreements, cannot submit deliverables, cannot withdraw escrow funds |
 
 ---
@@ -90,7 +90,7 @@ The protocol enforces a **Single-Role Architecture** with three dedicated partic
   - `Pending` $\rightarrow$ `Submitted` (via `submitMilestone` by Freelancer before deadline)
   - `Pending` $\rightarrow$ `Refunded` (via `refundMilestone` by Client on unstarted phase)
   - `Submitted` $\rightarrow$ `Released` (via `approveMilestone` by Client)
-  - `Submitted` $\rightarrow$ `Disputed` (via `raiseDispute` by Client or Freelancer)
+  - `Submitted` $\rightarrow$ `Disputed` (via `raiseDispute` by Client)
   - `Disputed` $\rightarrow$ `Resolved` (via `resolveDispute` by Arbitrator)
 - **Pull-Over-Push Settlement**:
   ```solidity
