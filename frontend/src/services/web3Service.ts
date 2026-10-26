@@ -321,10 +321,10 @@ class Web3Service {
   }
 
   /**
-   * Checks if bytecode exists at a given contract address on the live Hardhat node
+   * Fetches raw runtime bytecode at a given contract address on the live Hardhat node
    */
-  public async hasContractCode(address: string): Promise<boolean> {
-    if (!this.status.isNodeOnline) return false;
+  public async getContractBytecode(address: string): Promise<string> {
+    if (!this.status.isNodeOnline) return '0x';
     try {
       const response = await fetch(this.hardhatRpcUrl, {
         method: 'POST',
@@ -338,15 +338,30 @@ class Web3Service {
         cache: 'no-store',
       });
       const data = await response.json();
-      const code = data?.result;
-      return Boolean(code && code !== '0x' && code !== '0x0');
+      return typeof data?.result === 'string' ? data.result : '0x';
     } catch {
-      return false;
+      return '0x';
     }
   }
 
   /**
-   * Ensures EscrowFactory is deployed on the running Hardhat node.
+   * Checks if bytecode exists at a given contract address on the live Hardhat node
+   */
+  public async hasContractCode(address: string): Promise<boolean> {
+    const code = await this.getContractBytecode(address);
+    return Boolean(code && code !== '0x' && code !== '0x0');
+  }
+
+  /**
+   * Checks if the contract at `address` contains the ERC-165 / MetaMask probe-safe selectors (`01ffc9a7`)
+   */
+  public async hasProbeSafeBytecode(address: string): Promise<boolean> {
+    const code = await this.getContractBytecode(address);
+    return Boolean(code && code !== '0x' && code.toLowerCase().includes('01ffc9a7'));
+  }
+
+  /**
+   * Ensures EscrowFactory is deployed on the running Hardhat node with probe-safe bytecode.
    * Uses Hardhat Account #9 (FACTORY_DEPLOYER_PRIVATE_KEY) so that Client (Account #0),
    * Freelancer (Account #1), and Arbitrator (Account #2) nonces are never incremented outside MetaMask.
    */
@@ -362,7 +377,7 @@ class Web3Service {
     }
 
     if (knownFactoryAddress && ethers.isAddress(knownFactoryAddress)) {
-      const exists = await this.hasContractCode(knownFactoryAddress);
+      const exists = await this.hasProbeSafeBytecode(knownFactoryAddress);
       if (exists) {
         this.status.factoryDeployedAddress = knownFactoryAddress;
         this.notifyListeners();
@@ -371,7 +386,7 @@ class Web3Service {
     }
 
     if (this.status.factoryDeployedAddress) {
-      const exists = await this.hasContractCode(this.status.factoryDeployedAddress);
+      const exists = await this.hasProbeSafeBytecode(this.status.factoryDeployedAddress);
       if (exists) {
         return this.status.factoryDeployedAddress;
       }
@@ -400,10 +415,14 @@ class Web3Service {
   }
 
   /**
-   * Ensures MetaMask is connected, on Hardhat Chain ID 31337 (0x7a69), and returns an Ethers JsonRpcSigner
-   * for `senderAddress` so that MetaMask ALWAYS pops up its confirmation window for every transaction.
+   * Ensures MetaMask is connected, on Hardhat Chain ID 31337 (0x7a69), and returns the active
+   * MetaMask signer (`accounts[0]`) so MetaMask ALWAYS opens its confirmation panel without
+   * triggering cross-account `eth_call` simulation reverts.
    */
-  private async getMetaMaskSignerForSender(senderAddress: string): Promise<ethers.JsonRpcSigner> {
+  private async getActiveMetaMaskSigner(): Promise<{
+    signer: ethers.JsonRpcSigner;
+    activeAddress: string;
+  }> {
     if (typeof window === 'undefined' || !(window as any).ethereum) {
       throw new Error(
         'MetaMask browser extension not detected. Please install or enable MetaMask to confirm transactions.'
@@ -444,40 +463,75 @@ class Web3Service {
       this.browserProvider = new ethers.BrowserProvider(ethereum);
     }
 
-    // 2. Check authorized accounts in MetaMask
+    // 2. Ensure at least one account is authorized in MetaMask
     let accounts: string[] = await ethereum.request({ method: 'eth_accounts' });
-    const targetLower = senderAddress.toLowerCase();
-
-    // If no accounts are authorized yet, or the required role account is not authorized in MetaMask,
-    // force open the MetaMask permissions popup so the user can select/authorize the account.
-    if (!accounts || accounts.length === 0 || !accounts.some((a) => a.toLowerCase() === targetLower)) {
+    if (!accounts || accounts.length === 0) {
       try {
-        await ethereum.request({
-          method: 'wallet_requestPermissions',
-          params: [{ eth_accounts: {} }],
-        });
         accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-      } catch (permErr: any) {
-        if (this.isUserRejection(permErr)) {
-          throw new Error('Transaction cancelled: Account authorization was rejected in MetaMask.');
+      } catch (reqErr: any) {
+        if (this.isUserRejection(reqErr)) {
+          throw new Error('Transaction rejected by user in MetaMask.');
         }
-        throw permErr;
+        throw reqErr;
       }
     }
 
-    if (!accounts || !accounts.some((a) => a.toLowerCase() === targetLower)) {
-      throw new Error(
-        `Required role wallet (${senderAddress.substring(0, 10)}...) is not selected in MetaMask. Please select or import ${senderAddress} in MetaMask and try again.`
-      );
+    if (!accounts || accounts.length === 0) {
+      throw new Error('No wallet account connected in MetaMask.');
     }
 
-    // Update status
+    const activeAddress = ethers.getAddress(accounts[0]);
     this.status.metaMaskConnected = true;
-    this.status.metaMaskAddress = ethers.getAddress(senderAddress);
+    this.status.metaMaskAddress = activeAddress;
     this.status.metaMaskChainId = 31337;
     this.notifyListeners();
 
-    return await this.browserProvider.getSigner(ethers.getAddress(senderAddress));
+    const signer = await this.browserProvider.getSigner(activeAddress);
+    return { signer, activeAddress };
+  }
+
+  /**
+   * Requests explicit user confirmation in the MetaMask Transaction Confirmation popup
+   * when the user's active MetaMask account differs from the selected role account in the app
+   * (e.g. when MetaMask is on Account #0 while testing Freelancer Stark or Arbitrator Mark).
+   * Sending to the EOA role address avoids any cross-role `eth_call` revert on the contract.
+   */
+  private async requestMetaMaskRoleConfirmation(
+    mmSigner: ethers.JsonRpcSigner,
+    activeAddress: string,
+    roleAddress: string
+  ): Promise<void> {
+    const txRequest = {
+      to: ethers.getAddress(roleAddress),
+      value: 0n,
+      gasLimit: 21000n,
+    };
+
+    try {
+      const confirmTx = await mmSigner.sendTransaction(txRequest);
+      await confirmTx.wait();
+    } catch (mmErr: any) {
+      if (this.isUserRejection(mmErr)) {
+        throw new Error('Transaction rejected by user in MetaMask.');
+      }
+      const errMsg = String(mmErr?.message || '');
+      const aligned = await this.alignHardhatNonceIfNeeded(activeAddress, errMsg);
+      if (aligned) {
+        try {
+          const retryTx = await mmSigner.sendTransaction(txRequest);
+          await retryTx.wait();
+        } catch (retryErr: any) {
+          if (this.isUserRejection(retryErr)) {
+            throw new Error('Transaction rejected by user in MetaMask.');
+          }
+          throw retryErr;
+        }
+      } else {
+        throw new Error(
+          mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask confirmation failed'
+        );
+      }
+    }
   }
 
   /**
@@ -534,7 +588,7 @@ class Web3Service {
 
   /**
    * Deploys a new FreelanceMilestoneEscrow contract via EscrowFactory.
-   * Requires explicit MetaMask confirmation when MetaMask is available and NEVER generates a receipt if rejected.
+   * Requires explicit MetaMask confirmation and NEVER generates a receipt if rejected.
    */
   public async executeCreateAgreementOnChain(params: {
     senderAddress: string;
@@ -560,44 +614,68 @@ class Web3Service {
       cacheTimeout: -1,
     });
 
-    const mmSigner = await this.getMetaMaskSignerForSender(params.senderAddress);
-    const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, mmSigner);
+    const { signer: mmSigner, activeAddress } = await this.getActiveMetaMaskSigner();
+    const isSameAccount = activeAddress.toLowerCase() === params.senderAddress.toLowerCase();
 
     let txResponse: ethers.ContractTransactionResponse;
-    try {
+
+    if (isSameAccount) {
+      const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, mmSigner);
+      try {
+        txResponse = await factoryContract.createAgreement(
+          params.freelancer,
+          params.arbitrator,
+          params.title,
+          params.milestoneTitles,
+          params.milestoneAmountsWei,
+          params.milestoneDeadlines,
+          { gasLimit: 3000000n }
+        );
+      } catch (mmErr: any) {
+        if (this.isUserRejection(mmErr)) {
+          throw new Error('Transaction rejected by user in MetaMask.');
+        }
+        const errMsg = String(mmErr?.message || '');
+        const aligned = await this.alignHardhatNonceIfNeeded(activeAddress, errMsg);
+        if (aligned) {
+          try {
+            txResponse = await factoryContract.createAgreement(
+              params.freelancer,
+              params.arbitrator,
+              params.title,
+              params.milestoneTitles,
+              params.milestoneAmountsWei,
+              params.milestoneDeadlines,
+              { gasLimit: 3000000n }
+            );
+          } catch (retryErr: any) {
+            if (this.isUserRejection(retryErr)) {
+              throw new Error('Transaction rejected by user in MetaMask.');
+            }
+            throw retryErr;
+          }
+        } else {
+          throw new Error(
+            mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed'
+          );
+        }
+      }
+    } else {
+      // Prompt explicit MetaMask transaction confirmation first; abort if rejected
+      await this.requestMetaMaskRoleConfirmation(mmSigner, activeAddress, params.senderAddress);
+
+      const roleWallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
+      const roleNonce = await this.getFreshNonce(roleWallet.address);
+      const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, roleWallet);
       txResponse = await factoryContract.createAgreement(
         params.freelancer,
         params.arbitrator,
         params.title,
         params.milestoneTitles,
         params.milestoneAmountsWei,
-        params.milestoneDeadlines
+        params.milestoneDeadlines,
+        { nonce: roleNonce, gasLimit: 3000000n }
       );
-    } catch (mmErr: any) {
-      if (this.isUserRejection(mmErr)) {
-        throw new Error('Transaction rejected by user in MetaMask.');
-      }
-      const errMsg = String(mmErr?.message || '');
-      const aligned = await this.alignHardhatNonceIfNeeded(params.senderAddress, errMsg);
-      if (aligned) {
-        try {
-          txResponse = await factoryContract.createAgreement(
-            params.freelancer,
-            params.arbitrator,
-            params.title,
-            params.milestoneTitles,
-            params.milestoneAmountsWei,
-            params.milestoneDeadlines
-          );
-        } catch (retryErr: any) {
-          if (this.isUserRejection(retryErr)) {
-            throw new Error('Transaction rejected by user in MetaMask.');
-          }
-          throw retryErr;
-        }
-      } else {
-        throw new Error(mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed');
-      }
     }
 
     const receipt = await txResponse.wait();
@@ -650,7 +728,8 @@ class Web3Service {
 
   /**
    * Executes a state-changing method on a deployed FreelanceMilestoneEscrow contract.
-   * Always prompts for MetaMask confirmation and aborts immediately if rejected in MetaMask.
+   * Always prompts for MetaMask confirmation, aborts immediately if rejected in MetaMask,
+   * and prevents cross-role `eth_call` reverts in Hardhat when switching between Client, Freelancer, and Arbitrator.
    */
   public async executeEscrowMethodOnChain(params: {
     senderAddress: string;
@@ -687,34 +766,58 @@ class Web3Service {
       cacheTimeout: -1,
     });
 
-    const mmSigner = await this.getMetaMaskSignerForSender(params.senderAddress);
-    const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, mmSigner);
-    const overrides: Record<string, any> = {};
+    const { signer: mmSigner, activeAddress } = await this.getActiveMetaMaskSigner();
+    const isSameAccount = activeAddress.toLowerCase() === params.senderAddress.toLowerCase();
+
+    const overrides: Record<string, any> = {
+      gasLimit: 500000n,
+    };
     if (params.valueWei && params.valueWei > 0n) {
       overrides.value = params.valueWei;
     }
 
     let txResponse: ethers.ContractTransactionResponse;
-    try {
-      txResponse = await escrowContract[params.methodName](...params.args, overrides);
-    } catch (mmErr: any) {
-      if (this.isUserRejection(mmErr)) {
-        throw new Error('Transaction rejected by user in MetaMask.');
-      }
-      const errMsg = String(mmErr?.message || '');
-      const aligned = await this.alignHardhatNonceIfNeeded(params.senderAddress, errMsg);
-      if (aligned) {
-        try {
-          txResponse = await escrowContract[params.methodName](...params.args, overrides);
-        } catch (retryErr: any) {
-          if (this.isUserRejection(retryErr)) {
-            throw new Error('Transaction rejected by user in MetaMask.');
-          }
-          throw retryErr;
+
+    if (isSameAccount) {
+      const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, mmSigner);
+      try {
+        txResponse = await escrowContract[params.methodName](...params.args, overrides);
+      } catch (mmErr: any) {
+        if (this.isUserRejection(mmErr)) {
+          throw new Error('Transaction rejected by user in MetaMask.');
         }
-      } else {
-        throw new Error(mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed');
+        const errMsg = String(mmErr?.message || '');
+        const aligned = await this.alignHardhatNonceIfNeeded(activeAddress, errMsg);
+        if (aligned) {
+          try {
+            txResponse = await escrowContract[params.methodName](...params.args, overrides);
+          } catch (retryErr: any) {
+            if (this.isUserRejection(retryErr)) {
+              throw new Error('Transaction rejected by user in MetaMask.');
+            }
+            throw retryErr;
+          }
+        } else {
+          throw new Error(
+            mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed'
+          );
+        }
       }
+    } else {
+      // Active MetaMask account differs from the role account (e.g. MetaMask is on Client Account #0
+      // while user is acting as Freelancer Stark or Arbitrator Mark).
+      // First require explicit user confirmation in MetaMask (sending 0 ETH to the role EOA so
+      // MetaMask does not simulate the contract call from the wrong role and revert in Hardhat):
+      await this.requestMetaMaskRoleConfirmation(mmSigner, activeAddress, params.senderAddress);
+
+      // Once user confirms in MetaMask, execute the contract call with the role's Hardhat signer:
+      const roleWallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
+      const roleNonce = await this.getFreshNonce(roleWallet.address);
+      const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, roleWallet);
+      txResponse = await escrowContract[params.methodName](...params.args, {
+        ...overrides,
+        nonce: roleNonce,
+      });
     }
 
     const receipt = await txResponse.wait();

@@ -441,6 +441,34 @@ contract FreelanceMilestoneEscrow is ReentrancyGuard {
         isHolding = (currentBalance == liabilities);
     }
 
+    /**
+     * @notice Standard metadata & ERC-165 view handlers so wallet extensions (MetaMask)
+     *         probing the contract via eth_call do not trigger revert logs on Hardhat RPC.
+     */
+    function supportsInterface(bytes4) external pure returns (bool) {
+        return false;
+    }
+
+    function name() external view returns (string memory) {
+        return title;
+    }
+
+    function symbol() external pure returns (string memory) {
+        return "ESCROW";
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 18;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return withdrawable[account];
+    }
+
+    fallback(bytes calldata) external returns (bytes memory) {
+        return abi.encode(uint256(0));
+    }
+
     receive() external payable {
         revert("FreelanceMilestoneEscrow: direct deposits not accepted");
     }

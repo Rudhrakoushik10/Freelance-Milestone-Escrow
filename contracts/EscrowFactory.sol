@@ -100,4 +100,28 @@ contract EscrowFactory {
     function getEscrowsForFreelancer(address _freelancer) external view returns (address[] memory) {
         return freelancerEscrows[_freelancer];
     }
+
+    function supportsInterface(bytes4) external pure returns (bool) {
+        return false;
+    }
+
+    function name() external pure returns (string memory) {
+        return "FreelanceEscrowFactory";
+    }
+
+    function symbol() external pure returns (string memory) {
+        return "FACTORY";
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 18;
+    }
+
+    function balanceOf(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    fallback(bytes calldata) external returns (bytes memory) {
+        return abi.encode(uint256(0));
+    }
 }
