@@ -68,6 +68,21 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       );
       return;
     }
+
+    const selectedAccount = accounts.find((a) => a.id === accountId);
+    const ethereum = (window as any).ethereum;
+    if (ethereum) {
+      setIsConnectingMetaMask(true);
+      try {
+        await web3Service.connectMetaMask(selectedAccount?.address);
+      } catch (err: any) {
+        setMetaMaskError(err.message || 'MetaMask connection cancelled or failed.');
+        setIsConnectingMetaMask(false);
+        return;
+      }
+      setIsConnectingMetaMask(false);
+    }
+
     onConnectAccount(accountId);
     onClose();
   };

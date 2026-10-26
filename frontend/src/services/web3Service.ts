@@ -8,6 +8,10 @@ import { DecodedEvent, RpcNodeStatus } from '../types/escrow';
 export const FACTORY_ABI = ESCROW_FACTORY_ARTIFACT.abi;
 export const ESCROW_ABI = FREELANCE_MILESTONE_ESCROW_ARTIFACT.abi;
 
+// Dedicated Hardhat Account #9 used strictly for deploying EscrowFactory so Client/Freelancer/Arbitrator nonces are never touched outside MetaMask
+const FACTORY_DEPLOYER_PRIVATE_KEY =
+  '0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6';
+
 export interface OnChainTxResult {
   hash: string;
   blockNumber: number;
@@ -77,8 +81,11 @@ class Web3Service {
     this.jsonRpcProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
       staticNetwork: false,
       batchMaxCount: 1,
-      cacheTimeout: -1, // Disable ethers internal RPC caching to prevent stale nonces
+      cacheTimeout: -1,
     });
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      this.browserProvider = new ethers.BrowserProvider((window as any).ethereum);
+    }
   }
 
   private setupMetaMaskListeners() {
@@ -92,12 +99,16 @@ class Web3Service {
           } else {
             this.status.metaMaskConnected = true;
             this.status.metaMaskAddress = ethers.getAddress(accounts[0]);
+            this.browserProvider = new ethers.BrowserProvider(ethereum);
           }
           this.notifyListeners();
         });
 
         ethereum.on('chainChanged', (chainIdHex: string) => {
           this.status.metaMaskChainId = parseInt(chainIdHex, 16);
+          if ((window as any).ethereum) {
+            this.browserProvider = new ethers.BrowserProvider((window as any).ethereum);
+          }
           this.checkLocalNode();
         });
 
@@ -142,8 +153,26 @@ class Web3Service {
   }
 
   /**
+   * Detects if an error thrown by MetaMask / Ethers v6 was caused by the user clicking Reject / Cancel.
+   */
+  public isUserRejection(err: any): boolean {
+    if (!err) return false;
+    const code = err?.code ?? err?.info?.error?.code ?? err?.error?.code;
+    if (code === 4001 || code === 'ACTION_REJECTED') {
+      return true;
+    }
+    const msg = String(err?.shortMessage || err?.reason || err?.message || '').toLowerCase();
+    return (
+      msg.includes('user rejected') ||
+      msg.includes('user denied') ||
+      msg.includes('rejected by user') ||
+      msg.includes('action_rejected') ||
+      msg.includes('request rejected')
+    );
+  }
+
+  /**
    * Queries the exact next pending transaction nonce directly from the Hardhat RPC server
-   * with `cache: 'no-store'` so `Nonce too low / nonce has already been used` never occurs.
    */
   public async getFreshNonce(address: string): Promise<number> {
     const response = await fetch(this.hardhatRpcUrl, {
@@ -168,8 +197,37 @@ class Web3Service {
   }
 
   /**
-   * Performs an uncached JSON-RPC ping to http://127.0.0.1:8545 so that
-   * stopping `npx hardhat node` is detected immediately without stale caching.
+   * If the user restarted `npx hardhat node` and MetaMask's cached account nonce is higher than
+   * Hardhat's fresh nonce, aligns Hardhat's account nonce via `hardhat_setNonce` so MetaMask
+   * transactions succeed cleanly upon user confirmation.
+   */
+  private async alignHardhatNonceIfNeeded(address: string, errorMessage: string): Promise<boolean> {
+    const match = errorMessage.match(/Expected nonce to be (\d+) but got (\d+)/i);
+    if (!match) return false;
+    const gotNonce = parseInt(match[2], 10);
+    if (isNaN(gotNonce)) return false;
+
+    try {
+      const hexNonce = '0x' + gotNonce.toString(16);
+      await fetch(this.hardhatRpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'hardhat_setNonce',
+          params: [address, hexNonce],
+          id: Date.now(),
+        }),
+        cache: 'no-store',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Performs an uncached JSON-RPC ping to http://127.0.0.1:8545
    */
   public async checkLocalNode(): Promise<boolean> {
     const controller = new AbortController();
@@ -289,10 +347,11 @@ class Web3Service {
 
   /**
    * Ensures EscrowFactory is deployed on the running Hardhat node.
-   * Uses a fresh provider and explicit uncached nonce so subsequent transactions never collide on nonce.
+   * Uses Hardhat Account #9 (FACTORY_DEPLOYER_PRIVATE_KEY) so that Client (Account #0),
+   * Freelancer (Account #1), and Arbitrator (Account #2) nonces are never incremented outside MetaMask.
    */
   public async ensureFactoryDeployed(
-    deployerPrivateKey: string,
+    _unusedKey?: string,
     knownFactoryAddress?: string
   ): Promise<string> {
     const isOnline = await this.checkLocalNode();
@@ -318,13 +377,12 @@ class Web3Service {
       }
     }
 
-    // Deploy fresh EscrowFactory on the live Hardhat node with explicit fresh nonce
     const freshProvider = new ethers.JsonRpcProvider(this.hardhatRpcUrl, undefined, {
       staticNetwork: false,
       batchMaxCount: 1,
       cacheTimeout: -1,
     });
-    const wallet = new ethers.Wallet(deployerPrivateKey, freshProvider);
+    const wallet = new ethers.Wallet(FACTORY_DEPLOYER_PRIVATE_KEY, freshProvider);
     const freshNonce = await this.getFreshNonce(wallet.address);
 
     const factory = new ethers.ContractFactory(
@@ -339,6 +397,87 @@ class Web3Service {
     this.status.factoryDeployedAddress = deployedAddress;
     this.notifyListeners();
     return deployedAddress;
+  }
+
+  /**
+   * Ensures MetaMask is connected, on Hardhat Chain ID 31337 (0x7a69), and returns an Ethers JsonRpcSigner
+   * for `senderAddress` so that MetaMask ALWAYS pops up its confirmation window for every transaction.
+   */
+  private async getMetaMaskSignerForSender(senderAddress: string): Promise<ethers.JsonRpcSigner> {
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      throw new Error(
+        'MetaMask browser extension not detected. Please install or enable MetaMask to confirm transactions.'
+      );
+    }
+
+    const ethereum = (window as any).ethereum;
+    this.browserProvider = new ethers.BrowserProvider(ethereum);
+
+    // 1. Ensure MetaMask is on Chain ID 31337 (0x7a69)
+    const chainIdHex: string = await ethereum.request({ method: 'eth_chainId' });
+    if (parseInt(chainIdHex, 16) !== 31337) {
+      try {
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x7a69' }],
+        });
+      } catch (switchError: any) {
+        if (this.isUserRejection(switchError)) {
+          throw new Error('Network switch to Hardhat (Chain ID 31337) was rejected in MetaMask.');
+        }
+        if (switchError.code === 4902) {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0x7a69',
+                chainName: 'Hardhat Localhost 8545',
+                rpcUrls: ['http://127.0.0.1:8545'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          });
+        } else {
+          throw switchError;
+        }
+      }
+      this.browserProvider = new ethers.BrowserProvider(ethereum);
+    }
+
+    // 2. Check authorized accounts in MetaMask
+    let accounts: string[] = await ethereum.request({ method: 'eth_accounts' });
+    const targetLower = senderAddress.toLowerCase();
+
+    // If no accounts are authorized yet, or the required role account is not authorized in MetaMask,
+    // force open the MetaMask permissions popup so the user can select/authorize the account.
+    if (!accounts || accounts.length === 0 || !accounts.some((a) => a.toLowerCase() === targetLower)) {
+      try {
+        await ethereum.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }],
+        });
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (permErr: any) {
+        if (this.isUserRejection(permErr)) {
+          throw new Error('Transaction cancelled: Account authorization was rejected in MetaMask.');
+        }
+        throw permErr;
+      }
+    }
+
+    if (!accounts || !accounts.some((a) => a.toLowerCase() === targetLower)) {
+      throw new Error(
+        `Required role wallet (${senderAddress.substring(0, 10)}...) is not selected in MetaMask. Please select or import ${senderAddress} in MetaMask and try again.`
+      );
+    }
+
+    // Update status
+    this.status.metaMaskConnected = true;
+    this.status.metaMaskAddress = ethers.getAddress(senderAddress);
+    this.status.metaMaskChainId = 31337;
+    this.notifyListeners();
+
+    return await this.browserProvider.getSigner(ethers.getAddress(senderAddress));
   }
 
   /**
@@ -394,8 +533,8 @@ class Web3Service {
   }
 
   /**
-   * Deploys a new FreelanceMilestoneEscrow contract via EscrowFactory on the live Hardhat node.
-   * Explicitly manages the sender's pending nonce to prevent "nonce has already been used" errors.
+   * Deploys a new FreelanceMilestoneEscrow contract via EscrowFactory.
+   * Requires explicit MetaMask confirmation when MetaMask is available and NEVER generates a receipt if rejected.
    */
   public async executeCreateAgreementOnChain(params: {
     senderAddress: string;
@@ -421,72 +560,49 @@ class Web3Service {
       cacheTimeout: -1,
     });
 
-    const sendWithDirectRpcWallet = async (): Promise<{
-      txResponse: ethers.ContractTransactionResponse;
-      source: 'hardhat_rpc' | 'metamask_rpc';
-    }> => {
-      const wallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
-      const freshNonce = await this.getFreshNonce(params.senderAddress);
-      const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, wallet);
-      const txResponse = await factoryContract.createAgreement(
+    const mmSigner = await this.getMetaMaskSignerForSender(params.senderAddress);
+    const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, mmSigner);
+
+    let txResponse: ethers.ContractTransactionResponse;
+    try {
+      txResponse = await factoryContract.createAgreement(
         params.freelancer,
         params.arbitrator,
         params.title,
         params.milestoneTitles,
         params.milestoneAmountsWei,
-        params.milestoneDeadlines,
-        { nonce: freshNonce }
+        params.milestoneDeadlines
       );
-      return { txResponse, source: 'hardhat_rpc' };
-    };
-
-    let txResponse: ethers.ContractTransactionResponse;
-    let source: 'hardhat_rpc' | 'metamask_rpc' = 'hardhat_rpc';
-
-    // If MetaMask is connected to the caller address, try MetaMask first; if MetaMask has a stale nonce cache, recover automatically with fresh RPC nonce
-    if (
-      this.status.metaMaskConnected &&
-      this.browserProvider &&
-      this.status.metaMaskAddress?.toLowerCase() === params.senderAddress.toLowerCase()
-    ) {
-      try {
-        const mmSigner = await this.browserProvider.getSigner();
-        const freshNonce = await this.getFreshNonce(params.senderAddress);
-        const factoryContract = new ethers.Contract(params.factoryAddress, FACTORY_ABI, mmSigner);
-        txResponse = await factoryContract.createAgreement(
-          params.freelancer,
-          params.arbitrator,
-          params.title,
-          params.milestoneTitles,
-          params.milestoneAmountsWei,
-          params.milestoneDeadlines,
-          { nonce: freshNonce }
-        );
-        source = 'metamask_rpc';
-      } catch (mmErr: any) {
-        const msg = (mmErr?.message || '').toLowerCase();
-        if (
-          msg.includes('nonce') ||
-          msg.includes('already been used') ||
-          mmErr?.code === 'NONCE_EXPIRED' ||
-          mmErr?.info?.error?.code === -32000
-        ) {
-          const fallback = await sendWithDirectRpcWallet();
-          txResponse = fallback.txResponse;
-          source = fallback.source;
-        } else {
-          throw mmErr;
-        }
+    } catch (mmErr: any) {
+      if (this.isUserRejection(mmErr)) {
+        throw new Error('Transaction rejected by user in MetaMask.');
       }
-    } else {
-      const direct = await sendWithDirectRpcWallet();
-      txResponse = direct.txResponse;
-      source = direct.source;
+      const errMsg = String(mmErr?.message || '');
+      const aligned = await this.alignHardhatNonceIfNeeded(params.senderAddress, errMsg);
+      if (aligned) {
+        try {
+          txResponse = await factoryContract.createAgreement(
+            params.freelancer,
+            params.arbitrator,
+            params.title,
+            params.milestoneTitles,
+            params.milestoneAmountsWei,
+            params.milestoneDeadlines
+          );
+        } catch (retryErr: any) {
+          if (this.isUserRejection(retryErr)) {
+            throw new Error('Transaction rejected by user in MetaMask.');
+          }
+          throw retryErr;
+        }
+      } else {
+        throw new Error(mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed');
+      }
     }
 
     const receipt = await txResponse.wait();
-    if (!receipt) {
-      throw new Error('Transaction was not mined by the Hardhat server');
+    if (!receipt || receipt.status === 0) {
+      throw new Error('Transaction failed or reverted on the Hardhat blockchain.');
     }
 
     const block = await freshProvider.getBlock(receipt.blockNumber);
@@ -528,13 +644,13 @@ class Web3Service {
       deployedEscrowAddress,
       events,
       timestamp: block ? Number(block.timestamp) : Math.floor(Date.now() / 1000),
-      executionSource: source,
+      executionSource: 'metamask_rpc',
     };
   }
 
   /**
-   * Executes a state-changing method on a deployed FreelanceMilestoneEscrow contract on the live Hardhat node.
-   * Explicitly queries and passes the fresh pending nonce so nonce collisions never occur.
+   * Executes a state-changing method on a deployed FreelanceMilestoneEscrow contract.
+   * Always prompts for MetaMask confirmation and aborts immediately if rejected in MetaMask.
    */
   public async executeEscrowMethodOnChain(params: {
     senderAddress: string;
@@ -571,63 +687,39 @@ class Web3Service {
       cacheTimeout: -1,
     });
 
-    const sendWithDirectRpcWallet = async (): Promise<{
-      txResponse: ethers.ContractTransactionResponse;
-      source: 'hardhat_rpc' | 'metamask_rpc';
-    }> => {
-      const wallet = new ethers.Wallet(params.senderPrivateKey, freshProvider);
-      const freshNonce = await this.getFreshNonce(params.senderAddress);
-      const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, wallet);
-      const overrides: Record<string, any> = { nonce: freshNonce };
-      if (params.valueWei && params.valueWei > 0n) {
-        overrides.value = params.valueWei;
-      }
-      const txResponse = await escrowContract[params.methodName](...params.args, overrides);
-      return { txResponse, source: 'hardhat_rpc' };
-    };
+    const mmSigner = await this.getMetaMaskSignerForSender(params.senderAddress);
+    const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, mmSigner);
+    const overrides: Record<string, any> = {};
+    if (params.valueWei && params.valueWei > 0n) {
+      overrides.value = params.valueWei;
+    }
 
     let txResponse: ethers.ContractTransactionResponse;
-    let source: 'hardhat_rpc' | 'metamask_rpc' = 'hardhat_rpc';
-
-    if (
-      this.status.metaMaskConnected &&
-      this.browserProvider &&
-      this.status.metaMaskAddress?.toLowerCase() === params.senderAddress.toLowerCase()
-    ) {
-      try {
-        const mmSigner = await this.browserProvider.getSigner();
-        const freshNonce = await this.getFreshNonce(params.senderAddress);
-        const escrowContract = new ethers.Contract(params.contractAddress, ESCROW_ABI, mmSigner);
-        const overrides: Record<string, any> = { nonce: freshNonce };
-        if (params.valueWei && params.valueWei > 0n) {
-          overrides.value = params.valueWei;
-        }
-        txResponse = await escrowContract[params.methodName](...params.args, overrides);
-        source = 'metamask_rpc';
-      } catch (mmErr: any) {
-        const msg = (mmErr?.message || '').toLowerCase();
-        if (
-          msg.includes('nonce') ||
-          msg.includes('already been used') ||
-          mmErr?.code === 'NONCE_EXPIRED' ||
-          mmErr?.info?.error?.code === -32000
-        ) {
-          const fallback = await sendWithDirectRpcWallet();
-          txResponse = fallback.txResponse;
-          source = fallback.source;
-        } else {
-          throw mmErr;
-        }
+    try {
+      txResponse = await escrowContract[params.methodName](...params.args, overrides);
+    } catch (mmErr: any) {
+      if (this.isUserRejection(mmErr)) {
+        throw new Error('Transaction rejected by user in MetaMask.');
       }
-    } else {
-      const direct = await sendWithDirectRpcWallet();
-      txResponse = direct.txResponse;
-      source = direct.source;
+      const errMsg = String(mmErr?.message || '');
+      const aligned = await this.alignHardhatNonceIfNeeded(params.senderAddress, errMsg);
+      if (aligned) {
+        try {
+          txResponse = await escrowContract[params.methodName](...params.args, overrides);
+        } catch (retryErr: any) {
+          if (this.isUserRejection(retryErr)) {
+            throw new Error('Transaction rejected by user in MetaMask.');
+          }
+          throw retryErr;
+        }
+      } else {
+        throw new Error(mmErr?.shortMessage || mmErr?.reason || mmErr?.message || 'MetaMask transaction failed');
+      }
     }
 
     const receipt = await txResponse.wait();
-    if (!receipt) {
-      throw new Error('Transaction was not mined by the Hardhat server');
+    if (!receipt || receipt.status === 0) {
+      throw new Error('Transaction failed or reverted on the Hardhat blockchain.');
     }
 
     const block = await freshProvider.getBlock(receipt.blockNumber);
@@ -649,7 +741,7 @@ class Web3Service {
       to: ethers.getAddress(receipt.to ?? params.contractAddress),
       events,
       timestamp: block ? Number(block.timestamp) : Math.floor(Date.now() / 1000),
-      executionSource: source,
+      executionSource: 'metamask_rpc',
     };
   }
 
@@ -730,9 +822,10 @@ class Web3Service {
   }
 
   /**
-   * Connects to MetaMask or injected Web3 provider using ethers.BrowserProvider
+   * Connects to MetaMask and ALWAYS opens the MetaMask permission & account selection popup
+   * via `wallet_requestPermissions` (EIP-2255).
    */
-  public async connectMetaMask(): Promise<{ address: string; chainId: string }> {
+  public async connectMetaMask(preferredAddress?: string): Promise<{ address: string; chainId: string }> {
     const isOnline = await this.checkLocalNode();
     if (!isOnline) {
       throw new Error(
@@ -747,48 +840,70 @@ class Web3Service {
     const ethereum = (window as any).ethereum;
     this.browserProvider = new ethers.BrowserProvider(ethereum);
 
+    // Force MetaMask to open the account selection & permissions popup every single time
+    try {
+      await ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+    } catch (permErr: any) {
+      if (this.isUserRejection(permErr)) {
+        throw new Error('MetaMask connection cancelled by user.');
+      }
+      throw permErr;
+    }
+
     const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
     if (!accounts || accounts.length === 0) {
       throw new Error('No account authorized in MetaMask');
     }
 
-    const network = await this.browserProvider.getNetwork();
-    const chainIdHex = '0x' + network.chainId.toString(16);
-
-    if (network.chainId !== 31337n) {
+    // Ensure Hardhat network (Chain ID 31337 / 0x7a69) is selected
+    const chainIdHexCurrent: string = await ethereum.request({ method: 'eth_chainId' });
+    if (parseInt(chainIdHexCurrent, 16) !== 31337) {
       try {
         await ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: '0x7a69' }], // 31337 in hex
         });
       } catch (switchError: any) {
-        if (switchError.code === 4902) {
-          try {
-            await ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [
-                {
-                  chainId: '0x7a69',
-                  chainName: 'Hardhat Localhost 8545',
-                  rpcUrls: ['http://127.0.0.1:8545'],
-                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-                },
-              ],
-            });
-          } catch (addError) {
-            console.warn('Could not add Hardhat network to MetaMask automatically', addError);
-          }
+        if (this.isUserRejection(switchError)) {
+          throw new Error('Network switch to Hardhat Localhost 8545 was rejected in MetaMask.');
         }
+        if (switchError.code === 4902) {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0x7a69',
+                chainName: 'Hardhat Localhost 8545',
+                rpcUrls: ['http://127.0.0.1:8545'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          });
+        }
+      }
+      this.browserProvider = new ethers.BrowserProvider(ethereum);
+    }
+
+    let selectedAddr = accounts[0];
+    if (preferredAddress) {
+      const matchedInAuthorized = accounts.find(
+        (a) => a.toLowerCase() === preferredAddress.toLowerCase()
+      );
+      if (matchedInAuthorized) {
+        selectedAddr = matchedInAuthorized;
       }
     }
 
-    const checksumAddr = ethers.getAddress(accounts[0]);
+    const checksumAddr = ethers.getAddress(selectedAddr);
     this.status.metaMaskConnected = true;
     this.status.metaMaskAddress = checksumAddr;
     this.status.metaMaskChainId = 31337;
     this.notifyListeners();
 
-    return { address: checksumAddr, chainId: chainIdHex };
+    return { address: checksumAddr, chainId: '0x7a69' };
   }
 
   public getJsonRpcProvider(): ethers.JsonRpcProvider | null {
